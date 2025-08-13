@@ -21,7 +21,11 @@ AI-powered fact-checking for YouTube videos with advanced verification and relia
 ## Usage
 
 Once installed, the extension will automatically activate on YouTube video pages. A sidebar will appear with the fact-checking results and reliability score.
+Here's an example of the fact-checking results displayed in the sidebar:
+
 ![statistics_page](https://github.com/user-attachments/assets/5d3a8acb-f36b-42cd-8b83-6e1c472cac0c)
+
+You can configure the extension's settings from the popup:
 
 ![settings_page](https://github.com/user-attachments/assets/739151fa-0605-43d5-b6ab-5775db74a60d)
 
@@ -32,3 +36,7 @@ To use the fact-checking feature, you need to provide an API key from Google AI 
 1.  Go to [Google AI Studio](https://aistudio.google.com/) and create an API key.
 2.  Click on the extension icon in your browser to open the popup.
 3.  Paste your API key into the designated field and save.
+
+## Author
+
+This open-source extension was developed by Sameer Verma. You can reach him at [pieisnot22by7@gmail.com](mailto:pieisnot22by7@gmail.com).
