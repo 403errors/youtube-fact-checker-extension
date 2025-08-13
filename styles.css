@@ -1,0 +1,313 @@
+/* YouTube Fact-Check Extension - Enhanced Styles */
+/* Optimized for performance and compatibility */
+
+/* FACT-CHECK BUTTON - Maximum specificity for YouTube override */
+button#fact-check-button.fact-check-btn {
+  /* Layout and positioning */
+  position: static !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  
+  /* Dimensions - match YouTube's button sizing */
+  min-height: 36px !important;
+  height: 36px !important;
+  min-width: auto !important;
+  padding: 0 16px !important;
+  margin: 0 8px 0 0 !important;
+  
+  /* Typography */
+  font-family: "Roboto", "Arial", sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 36px !important;
+  white-space: nowrap !important;
+  
+  /* Appearance */
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 18px !important;
+  color: var(--yt-spec-text-primary, #f1f1f1) !important;
+  
+  /* Interactions */
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  overflow: hidden !important;
+  
+  /* Ensure proper stacking */
+  z-index: 1 !important;
+  position: relative !important;
+}
+
+/* Button content wrapper */
+.fact-check-btn .yt-spec-button-shape-next__button-text-content {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+/* Button states */
+.fact-check-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: translateY(-1px) !important;
+}
+
+.fact-check-btn:active {
+  transform: translateY(0) !important;
+}
+
+.fact-check-btn.active {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #10b981 !important;
+}
+
+.fact-check-btn.loading {
+  pointer-events: none !important;
+  opacity: 0.7 !important;
+}
+
+.fact-check-btn.loading .yt-spec-button-shape-next__button-text-content {
+  opacity: 0 !important;
+}
+
+.fact-check-btn.loading::after {
+  content: '';
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 16px !important;
+  height: 16px !important;
+  margin: -8px 0 0 -8px !important;
+  border: 2px solid transparent !important;
+  border-top: 2px solid currentColor !important;
+  border-radius: 50% !important;
+  animation: fact-check-spin 1s linear infinite !important;
+}
+
+@keyframes fact-check-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* SIDEBAR */
+.fact-check-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  right: -420px !important;
+  width: 420px !important;
+  height: 100vh !important;
+  background: #ffffff !important;
+  border-left: 1px solid #e5e7eb !important;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.15) !important;
+  z-index: 999999 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.fact-check-sidebar.sidebar-visible {
+  right: 0 !important;
+}
+
+/* Sidebar Header */
+.sidebar-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 20px 24px !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  flex-shrink: 0 !important;
+}
+
+.sidebar-header h3 {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+}
+
+.header-controls {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.control-btn,
+.close-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: none !important;
+  color: white !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 16px !important;
+  transition: all 0.2s ease !important;
+}
+
+.control-btn:hover,
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Sidebar Content */
+.sidebar-content {
+  flex: 1 !important;
+  overflow-y: auto !important;
+  padding: 0 !important;
+}
+
+.sidebar-content::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+  background: #f9fafb !important;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+  background: #d1d5db !important;
+  border-radius: 3px !important;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af !important;
+}
+
+/* Loading State */
+.loading {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 60px 20px !important;
+  text-align: center !important;
+}
+
+.loading-spinner {
+  width: 40px !important;
+  height: 40px !important;
+  border: 3px solid #f3f4f6 !important;
+  border-top: 3px solid #667eea !important;
+  border-radius: 50% !important;
+  animation: spin 1s linear infinite !important;
+  margin-bottom: 16px !important;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 14px !important;
+  color: #6b7280 !important;
+  font-weight: 500 !important;
+}
+
+/* Cache Notice */
+.cache-notice {
+  padding: 12px 20px !important;
+  background: #fef3c7 !important;
+  border-bottom: 1px solid #f59e0b !important;
+  color: #92400e !important;
+  font-size: 12px !important;
+  text-align: center !important;
+  font-weight: 500 !important;
+}
+
+/* Results Summary */
+.results-summary {
+  padding: 20px !important;
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.summary-title {
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  margin-bottom: 12px !important;
+}
+
+.summary-stats {
+  display: flex !important;
+  gap: 12px !important;
+  justify-content: center !important;
+  flex-wrap: wrap !important;
+}
+
+.stat {
+  padding: 8px 12px !important;
+  background: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 16px !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: #374151 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Results List */
+.results-list {
+  padding: 0 !important;
+}
+
+.fact-check-item {
+  padding: 20px !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  position: relative !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.fact-check-item::before {
+  content: '';
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 3px !important;
+  background: #e5e7eb !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.fact-check-item:hover {
+  background: #f9fafb !important;
+}
+
+.fact-check-item:last-child {
+  border-bottom: none !important;
+}
+
+/* Status-specific colors */
+.status-true::before { background: #10b981 !important; }
+.status-mostly-true::before { background: #10b981 !important; }
+.status-partly-true::before { background: #f59e0b !important; }
+.status-false::before { background: #ef4444 !important; }
+.status-misleading::before { background: #f97316 !important; }
+.status-unverifiable::before { background: #6b7280 !important; }
+
+/* Claim Header */
+.claim-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 12px !important;
+}
+
+.status-badge {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 6px 12px !important;
+  border-radius: 16px !important;
+  

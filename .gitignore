@@ -1,0 +1,549 @@
+# YouTube Fact-Check Extension - Enhanced .gitignore
+# Version: 1.1.0
+# Description: Comprehensive gitignore for Chrome extension development
+
+# =============================================================================
+# BUILD ARTIFACTS & DISTRIBUTION
+# =============================================================================
+
+# Build directories
+build/
+dist/
+temp/
+tmp/
+release/
+package/
+
+# Compressed packages
+*.zip
+*.tar.gz
+*.tar.bz2
+*.7z
+*.rar
+
+# Build logs and reports
+build.log
+build-report.*
+*.buildlog
+build-stats.*
+
+# Generated documentation
+docs/generated/
+documentation/build/
+
+# =============================================================================
+# CHROME EXTENSION SPECIFIC
+# =============================================================================
+
+# Extension packages
+*.crx
+*.pem
+*.crt
+
+# Chrome extension store assets
+store-assets/screenshots/
+store-assets/promotional/
+store-listing/
+
+# Extension development files
+manifest.dev.json
+manifest.beta.json
+
+# Temporary extension files
+extension-temp/
+unpacked/
+
+# =============================================================================
+# API KEYS & SENSITIVE DATA
+# =============================================================================
+
+# API keys and secrets
+.env
+.env.local
+.env.production
+.env.development
+config/secrets.*
+config/api-keys.*
+secrets/
+credentials/
+
+# User configuration with potential sensitive data
+config.local.json
+settings.private.json
+user-settings.*
+
+# Test API keys (even though they should be test keys)
+test-keys/
+dev-credentials/
+
+# =============================================================================
+# NODE.JS & NPM
+# =============================================================================
+
+# Dependencies
+node_modules/
+jspm_packages/
+
+# NPM/Yarn files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Package locks (uncomment if you want to ignore them)
+# package-lock.json
+# yarn.lock
+
+# NPM cache
+.npm
+.yarn-cache
+.yarn-integrity
+
+# Node.js runtime
+.node_repl_history
+
+# =============================================================================
+# DEVELOPMENT TOOLS
+# =============================================================================
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.sublime-project
+.sublime-workspace
+*.sublime-project
+*.sublime-workspace
+
+# Editor backup files
+*~
+*.bak
+*.backup
+.#*
+\#*#
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.template
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Atom
+.atom/
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Vim
+.*.sw[a-p]
+.netrwhist
+Session.vim
+
+# =============================================================================
+# TESTING & COVERAGE
+# =============================================================================
+
+# Test results
+test-results/
+coverage/
+.nyc_output/
+junit.xml
+
+# Jest
+jest-results/
+.jest/
+
+# Mocha
+.mocha-results/
+
+# Test screenshots and videos
+test-screenshots/
+test-videos/
+e2e-results/
+
+# =============================================================================
+# LOGS & DEBUGGING
+# =============================================================================
+
+# Application logs
+*.log
+logs/
+log/
+
+# Debug files
+debug/
+*.debug
+*.trace
+
+# Error dumps
+crash-reports/
+error-dumps/
+
+# Performance profiling
+*.prof
+performance/
+
+# Browser debugging
+.chrome-debug/
+.firefox-debug/
+
+# =============================================================================
+# OPERATING SYSTEM FILES
+# =============================================================================
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =============================================================================
+# TEMPORARY & CACHE FILES
+# =============================================================================
+
+# General temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+
+# Browser cache and data
+browser-data/
+chrome-data/
+profile-data/
+
+# Extension cache
+extension-cache/
+fact-check-cache/
+api-cache/
+
+# Image optimization cache
+.imageoptim-cache/
+
+# CSS/JS compilation cache
+.sass-cache/
+.postcss-cache/
+.parcel-cache/
+
+# =============================================================================
+# MEDIA & ASSETS
+# =============================================================================
+
+# Large media files that shouldn't be in repo
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+
+# High-resolution images (keep smaller versions)
+*-4k.*
+*-8k.*
+*-original.*
+*-uncompressed.*
+
+# Adobe files
+*.psd
+*.ai
+*.sketch
+
+# =============================================================================
+# DOCUMENTATION BUILD
+# =============================================================================
+
+# Generated documentation
+_site/
+.jekyll-cache/
+.jekyll-metadata
+
+# GitBook
+_book/
+.gitbook/
+
+# Sphinx
+_build/
+.doctrees/
+
+# =============================================================================
+# DEPLOYMENT & CI/CD
+# =============================================================================
+
+# Deployment scripts with secrets
+deploy-prod.sh
+deploy-staging.sh
+*.deploy
+
+# CI/CD temporary files
+.github/workflows/temp/
+ci-temp/
+
+# Docker
+.dockerignore.dev
+docker-compose.override.yml
+
+# Kubernetes
+k8s-secrets/
+*.kubeconfig
+
+# =============================================================================
+# ANALYTICS & MONITORING
+# =============================================================================
+
+# Analytics data
+analytics/
+usage-stats/
+telemetry/
+
+# Performance monitoring
+performance-logs/
+metrics/
+
+# =============================================================================
+# SECURITY SCANNING
+# =============================================================================
+
+# Security scan reports
+security-reports/
+vulnerability-reports/
+audit-results/
+
+# SAST/DAST results
+.snyk
+.security/
+
+# =============================================================================
+# BROWSER EXTENSION DEVELOPMENT
+# =============================================================================
+
+# Extension development profiles
+dev-profile/
+test-profile/
+extension-profile/
+
+# Browser automation
+selenium-screenshots/
+webdriver/
+browser-logs/
+
+# Extension testing
+extension-tests/temp/
+test-extension/
+
+# =============================================================================
+# VERSION CONTROL
+# =============================================================================
+
+# Git
+.git/
+.gitattributes.backup
+
+# SVN
+.svn/
+
+# Mercurial
+.hg/
+.hgignore
+
+# =============================================================================
+# CUSTOM PROJECT FILES
+# =============================================================================
+
+# Project-specific temporary files
+fact-check-temp/
+youtube-data/
+transcript-cache/
+
+# Development database
+dev.db
+dev.sqlite
+dev.sqlite3
+
+# Configuration overrides
+config.override.*
+settings.dev.*
+
+# Personal notes and documentation
+NOTES.md
+TODO-personal.md
+SCRATCH.md
+
+# Demo and example files
+demo-videos/
+example-transcripts/
+sample-data/
+
+# =============================================================================
+# ARCHIVES & BACKUPS
+# =============================================================================
+
+# Backup files
+*.backup
+*.bak
+backup/
+backups/
+
+# Archive files
+archive/
+archives/
+old/
+
+# Version backups
+v1-backup/
+previous-version/
+
+# =============================================================================
+# EXPERIMENTAL & RESEARCH
+# =============================================================================
+
+# Experimental features
+experimental/
+research/
+prototypes/
+
+# A/B testing
+ab-test-data/
+experiments/
+
+# Machine learning models (if any)
+models/
+*.model
+*.pkl
+*.h5
+
+# =============================================================================
+# THIRD-PARTY TOOLS
+# =============================================================================
+
+# Webpack
+.webpack/
+webpack-stats.json
+
+# Parcel
+.parcel-cache/
+parcel-bundle-reports/
+
+# Rollup
+.rollup-cache/
+
+# ESLint
+.eslintcache
+
+# Stylelint
+.stylelintcache
+
+# Prettier
+.prettierignore.backup
+
+# Husky
+.husky/_
+
+# =============================================================================
+# CUSTOM IGNORES (PROJECT SPECIFIC)
+# =============================================================================
+
+# Add any project-specific files here
+# Example:
+# custom-config/
+# proprietary-assets/
+# client-specific/
+
+# =============================================================================
+# EXCEPTIONS (Files to NOT ignore)
+# =============================================================================
+
+# Force include certain files that might be ignored by patterns above
+!.gitkeep
+!.gitignore
+!.github/
+!docs/.gitkeep
+
+# Include important config templates
+!config.template.json
+!settings.example.json
+!.env.example
+
+# Include essential build files
+!build.sh
+!package.json
+!package-lock.json
+
+# Include documentation
+!README.md
+!CHANGELOG.md
+!LICENSE
+!CONTRIBUTING.md
+
+# Include manifest and core extension files
+!manifest.json
+!content.js
+!background.js
+!popup.html
+!popup.js
+!styles.css
+!welcome.html
+
+# Include icons directory but not generated files
+!icons/
+icons/*.generated.*
+
+# =============================================================================
+# END OF GITIGNORE
+# =============================================================================
+
+# Note: This gitignore is designed to be comprehensive for Chrome extension
+# development. You may need to adjust certain sections based on your specific
+# development workflow and tools.
+#
+# Regular maintenance:
+# - Review and update when adding new tools
+# - Remove sections not relevant to your project
+# - Add project-specific ignores as needed
+#
+# Last updated: 2024 for YouTube Fact-Check Extension v1.1.0

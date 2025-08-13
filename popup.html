@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Removed external Google Fonts to fix CSP violation -->
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 420px;
+      min-height: 550px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #333;
+      line-height: 1.4;
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      color: #333;
+      padding: 20px;
+      text-align: center;
+      border-radius: 0 0 16px 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .header h1 {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header .subtitle {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 13px;
+      opacity: 0.7;
+      font-weight: 500;
+    }
+
+    .main-container {
+      padding: 16px;
+    }
+
+    /* Tab Navigation */
+    .tab-navigation {
+      display: flex;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      padding: 3px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .tab-button {
+      flex: 1;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: #666;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .tab-button.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    }
+
+    .tab-button:hover:not(.active) {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+    }
+
+    /* Tab Content */
+    .tab-content {
+      display: none;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      backdrop-filter: blur(10px);
+      margin-bottom: 16px;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Extension Toggle */
+    .extension-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+      border: 2px solid rgba(16, 185, 129, 0.2);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .extension-toggle.disabled {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .toggle-info h3 {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 3px;
+      color: #111;
+    }
+
+    .toggle-info p {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 12px;
+      color: #666;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 26px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #cbd5e1;
+      transition: .3s;
+      border-radius: 26px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked + .slider {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+
+    /* Form Groups */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 600;
+      color: #374151;
+      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 13px;
+      transition: all 0.3s ease;
+      background: white;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .input-group {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-group input {
+      padding-right: 45px;
+    }
+
+    .input-group .toggle-btn {
+      position: absolute;
+      right: 12px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      font-size: 16px;
+      color: #6b7280;
+      transition: color 0.2s;
+    }
+
+    .input-group .toggle-btn:hover {
+      color: #667eea;
+    }
+
+    .validation-indicator {
+      position: absolute;
+      right: 45px;
+      font-size: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    .validation-indicator.valid {
+      color: #10b981;
+    }
+
+    .validation-indicator.invalid {
+      color: #ef4444;
+    }
+
+    /* Model Selection */
+    .model-selector {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+      border: 2px solid rgba(102, 126, 234, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+
+    .model-selector h4 {
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: #374151;
+      font-weight: 600;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .model-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .model-option {
+      padding: 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .model-option:hover {
+      border-color: #667eea;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    }
+
+    .model-option.selected {
+      border-color: #667eea;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(102, 126, 234, 0.3);
+    }
+
+    .model-option .name {
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .model-option .desc {
+      font-size: 11px;
+      opacity: 0.8;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* Range Inputs */
+    .range-group {
+      margin-bottom: 16px;
+    }
+
+    .range-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .range-header label {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .range-value {
+      font-weight: 600;
+      color: #667eea;
+      font-size: 12px;
+      background: rgba(102, 126, 234, 0.1);
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #e5e7eb;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+    }
+
+    /* Buttons */
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn.has-changes {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+
+    .btn.loading {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    }
+
+    .btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    /* Status Messages */
+    .status-message {
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-top: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      display: none;
+      animation: slideIn 0.3s ease;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .status-success {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%);
+      color: #065f46;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-error {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.1) 100%);
+      color: #991b1b;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-info {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.1) 100%);
+      color: #1e40af;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    /* Help Text */
+    .help-text {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 6px;
+      line-height: 1.4;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .help-text a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .help-text a:hover {
+      text-decoration: underline;
+    }
+
+    /* Statistics */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .stat-item {
+      text-align: center;
+      padding: 12px;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+      border: 1px solid rgba(102, 126, 234, 0.2);
+      border-radius: 10px;
+    }
+
+    .stat-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #667eea;
+      margin-bottom: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #6b7280;
+      font-weight: 500;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* Checkboxes */
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: #667eea;
+    }
+
+    .checkbox-group label {
+      margin: 0;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    /* Model descriptions updated for new models */
+    .model-description {
+      margin-top: 8px;
+      padding: 12px;
+      background: rgba(102, 126, 234, 0.05);
+      border-radius: 8px;
+      border-left: 3px solid #667eea;
+    }
+
+    .model-description .model-name {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 600;
+      color: #667eea;
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .model-description .model-features {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.4;
+    }
+
+    /* Enhanced grounding search info */
+    .grounding-info {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(5, 150, 105, 0.05) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+
+    .grounding-info .info-title {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-weight: 600;
+      color: #059669;
+      font-size: 12px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .grounding-info .info-text {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 11px;
+      color: #065f46;
+      line-height: 1.4;
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      }
+
+      .tab-content,
+      .header {
+        background: rgba(31, 41, 55, 0.95);
+        color: #f9fafb;
+      }
+      
+      .form-group input,
+      .form-group select {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+      }
+      
+      .model-option {
+        background: #374151;
+        border-color: #4b5563;
+        color: #f9fafb;
+      }
+      
+      .stat-item {
+        background: rgba(55, 65, 81, 0.5);
+        border-color: #4b5563;
+      }
+
+      .toggle-info h3,
+      .form-group label,
+      .model-selector h4,
+      .stat-label {
+        color: #f9fafb;
+      }
+
+      .help-text {
+        color: #9ca3af;
+      }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(102, 126, 234, 0.3);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(102, 126, 234, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🤖 AI Fact-Check</h1>
+    <p class="subtitle">Advanced YouTube verification with Gemini 2.5</p>
+  </div>
+
+  <div class="main-container">
+    <!-- Extension Toggle -->
+    <div class="extension-toggle" id="extensionToggle">
+      <div class="toggle-info">
+        <h3 id="toggleTitle">Fact-Checking Enabled</h3>
+        <p id="toggleDesc">AI analysis with robust verification</p>
+      </div>
+      <label class="toggle-switch">
+        <input type="checkbox" id="enabled" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-navigation">
+      <button class="tab-button active" data-tab="settings">Settings</button>
+      <button class="tab-button" data-tab="stats">Statistics</button>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="tab-content active">
+      <!-- API Key -->
+      <div class="form-group">
+        <label for="apiKey">Google AI API Key *</label>
+        <div class="input-group">
+          <input type="password" id="apiKey" placeholder="Enter your Google AI API key">
+          <span class="validation-indicator" id="keyValidation"></span>
+          <button type="button" class="toggle-btn" id="toggleKey">👁️</button>
+        </div>
+        <div class="help-text">
+          Get your free API key from <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a>
+        </div>
+      </div>
+
+      <!-- Enhanced Model Selection -->
+      <div class="model-selector">
+        <h4>🧠 AI Model Selection (Updated 2025)</h4>
+        <div class="model-options">
+          <div class="model-option selected" data-model="premium">
+            <div class="name">Gemini 2.5 Flash</div>
+            <div class="desc">Premium accuracy & speed</div>
+          </div>
+          <div class="model-option" data-model="lite">
+            <div class="name">Gemini 2.5 Flash Lite</div>
+            <div class="desc">Efficient & fast</div>
+          </div>
+        </div>
+        <div class="model-description" id="modelDescription">
+          <div class="model-name">Gemini 2.5 Flash (Premium)</div>
+          <div class="model-features">Latest model with enhanced reasoning, real-time grounding search, and superior fact-checking capabilities. Fallback to Gemini 2.0 series if needed.</div>
+        </div>
+      </div>
+
+      <!-- Language -->
+      <div class="form-group">
+        <label for="language">Language</label>
+        <select id="language">
+          <option value="en">English</option>
+          <option value="es">Spanish</option>
+          <option value="fr">French</option>
+          <option value="de">German</option>
+          <option value="it">Italian</option>
+          <option value="pt">Portuguese</option>
+          <option value="ru">Russian</option>
+          <option value="ja">Japanese</option>
+          <option value="ko">Korean</option>
+          <option value="zh">Chinese</option>
+        </select>
+      </div>
+
+      <!-- Analysis Timeout -->
+      <div class="range-group">
+        <div class="range-header">
+          <label for="analysisTimeout">Analysis Timeout</label>
+          <span class="range-value" id="timeoutValue">45s</span>
+        </div>
+        <input type="range" id="analysisTimeout" min="30" max="120" value="45" step="5">
+        <div class="help-text">Time limit for AI analysis (30-120 seconds)</div>
+      </div>
+
+      <!-- Advanced Settings -->
+      <div class="checkbox-group">
+        <input type="checkbox" id="strictMode" checked>
+        <label for="strictMode">Strict verification mode</label>
+      </div>
+
+      <!-- Enhanced Grounding Search Setting -->
+      <div class="checkbox-group">
+        <input type="checkbox" id="useGroundingSearch" checked>
+        <label for="useGroundingSearch">🌐 Real-time internet verification (Grounding Search)</label>
+      </div>
+      <div class="grounding-info">
+        <div class="info-title">
+          <span>🌐</span>
+          <span>Enhanced Real-time Verification</span>
+        </div>
+        <div class="info-text">
+          Uses Google Search integration with Gemini 2.5 models to verify claims against current internet sources, official websites, and authoritative databases in real-time for maximum accuracy.
+        </div>
+      </div>
+
+      <!-- Confidence Threshold -->
+      <div class="range-group">
+        <div class="range-header">
+          <label for="confidenceThreshold">Confidence Threshold</label>
+          <span class="range-value" id="confidenceValue">70%</span>
+        </div>
+        <input type="range" id="confidenceThreshold" min="50" max="95" value="70" step="5">
+        <div class="help-text">Minimum confidence required to show claims</div>
+      </div>
+
+      <!-- Buttons -->
+      <button class="btn" id="save">Save Settings</button>
+      <div class="btn-group">
+        <button class="btn btn-secondary" id="testBtn">Test Setup</button>
+        <button class="btn btn-secondary" id="resetBtn">Reset</button>
+      </div>
+
+      <!-- Status Message -->
+      <div id="status" class="status-message"></div>
+    </div>
+
+    <!-- Statistics Tab -->
+    <div id="stats-tab" class="tab-content">
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="stat-value" id="videosChecked">0</div>
+          <div class="stat-label">Videos Checked</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="claimsFound">0</div>
+          <div class="stat-label">Claims Analyzed</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="accurateRatio">0%</div>
+          <div class="stat-label">Accuracy Rate</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="reliabilityScore">N/A</div>
+          <div class="stat-label">Reliability Score</div>
+        </div>
+      </div>
+      
+      <div class="form-group">
+        <label>Last Used</label>
+        <div style="padding: 8px; background: #f9fafb; border-radius: 8px; text-align: center; font-size: 13px; color: #6b7280; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;">
+          <span id="lastUsed">Never</span>
+        </div>
+      </div>
+
+      <div class="help-text" style="text-align: center; margin-top: 16px;">
+        Statistics help improve the extension's accuracy and performance over time. Updated models provide enhanced analysis capabilities.
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
