@@ -23,11 +23,11 @@ AI-powered fact-checking for YouTube videos with advanced verification and relia
 Once installed, the extension will automatically activate on YouTube video pages. A sidebar will appear with the fact-checking results and reliability score.
 Here's an example of the fact-checking results displayed in the sidebar:
 
-![statistics_page](https://github.com/user-attachments/assets/5d3a8acb-f36b-42cd-8b83-6e1c472cac0c)
+<img src="https://github.com/user-attachments/assets/5d3a8acb-f36b-42cd-8b83-6e1c472cac0c" alt="statistics_page" width="50%" style="border-radius: 10px;">
 
 You can configure the extension's settings from the popup:
 
-![settings_page](https://github.com/user-attachments/assets/739151fa-0605-43d5-b6ab-5775db74a60d)
+<img src="https://github.com/user-attachments/assets/739151fa-0605-43d5-b6ab-5775db74a60d" alt="settings_page" width="50%" style="border-radius: 10px;">
 
 ## Configuration
 
