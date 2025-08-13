@@ -1,9 +1,5 @@
 // YouTube Fact-Check Extension - Main Content Script Entry Point
-// Simplified and modularized for better maintainability
-
-import { FactChecker } from './core/FactChecker.js';
-import { StylesManager } from './ui/StylesManager.js';
-import { URLObserver } from './utils/URLObserver.js';
+// Using dynamic imports with proper Chrome extension URLs
 
 class ContentScriptManager {
   constructor() {
@@ -17,6 +13,20 @@ class ContentScriptManager {
     try {
       console.log('🚀 Initializing YouTube Fact-Check Extension...');
       
+      // Get the extension URL
+      const extensionUrl = chrome.runtime.getURL('');
+      
+      // Dynamically import modules using full Chrome extension URLs
+      const [
+        { FactChecker },
+        { StylesManager },
+        { URLObserver }
+      ] = await Promise.all([
+        import(chrome.runtime.getURL('core/FactChecker.js')),
+        import(chrome.runtime.getURL('ui/StylesManager.js')),
+        import(chrome.runtime.getURL('utils/URLObserver.js'))
+      ]);
+
       // Initialize core managers
       this.stylesManager = new StylesManager();
       this.factChecker = new FactChecker();
@@ -88,13 +98,13 @@ class ContentScriptManager {
 }
 
 // Initialize the content script manager
-function initializeFactChecker() {
+async function initializeFactChecker() {
   if (window.factCheckerManager) {
     window.factCheckerManager.cleanup();
   }
   
   window.factCheckerManager = new ContentScriptManager();
-  window.factCheckerManager.init();
+  await window.factCheckerManager.init();
 }
 
 // Safe initialization

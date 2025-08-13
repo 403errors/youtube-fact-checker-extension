@@ -24,8 +24,7 @@
       "matches": ["https://www.youtube.com/watch*"],
       "js": ["content.js"],
       "css": ["styles.css"],
-      "run_at": "document_idle",
-      "type": "module"
+      "run_at": "document_idle"
     }
   ],
   
@@ -54,7 +53,16 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["icons/*", "styles.css"],
+      "resources": [
+        "icons/*",
+        "styles.css",
+        "core/*.js",
+        "ui/*.js",
+        "utils/*.js",
+        "transcript/*.js",
+        "transcript/methods/*.js",
+        "transcript/utils/*.js"
+      ],
       "matches": ["https://www.youtube.com/*"]
     }
   ],
