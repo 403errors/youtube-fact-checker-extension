@@ -1,5 +1,5 @@
-// URLObserver.js - Observes URL changes for YouTube navigation
-// Handles YouTube's SPA navigation and triggers callbacks on URL changes
+// URLObserver.js - Fixed URL change detection for YouTube navigation
+// Robust detection with proper timing and coordination
 
 export class URLObserver {
   constructor() {
@@ -7,74 +7,114 @@ export class URLObserver {
     this.callback = null;
     this.observer = null;
     this.isObserving = false;
+    this.navigationTimeout = null;
+    this.lastUrlChangeTime = 0;
+    this.debounceDelay = 300; // Prevent rapid fire events
   }
 
   init(callback) {
     this.callback = callback;
     this.setupObserver();
     this.isObserving = true;
-    
-    console.log('URL observer initialized');
+    console.log('🔍 URL observer initialized');
   }
 
   setupObserver() {
-    // Method 1: MutationObserver for DOM changes
-    this.observer = new MutationObserver(() => {
+    // Method 1: YouTube's navigation event (most reliable)
+    window.addEventListener('yt-navigate-finish', this.handleYouTubeNavigation.bind(this));
+    
+    // Method 2: History API monitoring
+    this.interceptHistoryMethods();
+    
+    // Method 3: URL polling as fallback
+    this.startUrlPolling();
+    
+    // Method 4: Focus event for tab switching
+    window.addEventListener('focus', this.handleFocusEvent.bind(this));
+    
+    // Method 5: Popstate for back/forward
+    window.addEventListener('popstate', this.handlePopState.bind(this));
+  }
+
+  handleYouTubeNavigation() {
+    // YouTube's native navigation event
+    this.scheduleUrlCheck(500); // Give YouTube time to update
+  }
+
+  interceptHistoryMethods() {
+    const self = this;
+    
+    // Store original methods
+    const originalPushState = history.pushState.bind(history);
+    const originalReplaceState = history.replaceState.bind(history);
+    
+    // Override pushState
+    history.pushState = function(...args) {
+      originalPushState(...args);
+      self.scheduleUrlCheck(100);
+    };
+    
+    // Override replaceState
+    history.replaceState = function(...args) {
+      originalReplaceState(...args);
+      self.scheduleUrlCheck(100);
+    };
+  }
+
+  startUrlPolling() {
+    // Lightweight polling every 1 second as ultimate fallback
+    setInterval(() => {
+      if (this.isObserving) {
+        this.checkUrlChange();
+      }
+    }, 1000);
+  }
+
+  handleFocusEvent() {
+    // Check URL when returning to tab
+    this.scheduleUrlCheck(200);
+  }
+
+  handlePopState() {
+    // Handle back/forward navigation
+    this.scheduleUrlCheck(100);
+  }
+
+  scheduleUrlCheck(delay = 100) {
+    // Clear any pending check
+    if (this.navigationTimeout) {
+      clearTimeout(this.navigationTimeout);
+    }
+    
+    // Schedule new check
+    this.navigationTimeout = setTimeout(() => {
       this.checkUrlChange();
-    });
-    
-    this.observer.observe(document, { 
-      childList: true, 
-      subtree: true 
-    });
-
-    // Method 2: YouTube's navigation event
-    window.addEventListener('yt-navigate-finish', () => {
-      setTimeout(() => this.checkUrlChange(), 500);
-    });
-
-    // Method 3: History API changes
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-    
-    history.pushState = function() {
-      originalPushState.apply(history, arguments);
-      setTimeout(() => this.checkUrlChange(), 100);
-    }.bind(this);
-    
-    history.replaceState = function() {
-      originalReplaceState.apply(history, arguments);
-      setTimeout(() => this.checkUrlChange(), 100);
-    }.bind(this);
-
-    // Method 4: Popstate event
-    window.addEventListener('popstate', () => {
-      setTimeout(() => this.checkUrlChange(), 100);
-    });
-
-    // Method 5: Hashchange event
-    window.addEventListener('hashchange', () => {
-      setTimeout(() => this.checkUrlChange(), 100);
-    });
-
-    // Method 6: Focus event (when returning to tab)
-    window.addEventListener('focus', () => {
-      setTimeout(() => this.checkUrlChange(), 200);
-    });
+      this.navigationTimeout = null;
+    }, delay);
   }
 
   checkUrlChange() {
     const newUrl = location.href;
+    const now = Date.now();
+    
+    // Debounce rapid changes
+    if (now - this.lastUrlChangeTime < this.debounceDelay) {
+      return;
+    }
     
     if (newUrl !== this.currentUrl) {
       const oldUrl = this.currentUrl;
       this.currentUrl = newUrl;
+      this.lastUrlChangeTime = now;
       
-      console.log(`URL changed: ${oldUrl} -> ${newUrl}`);
+      console.log(`🔄 URL changed: ${this.getPageType(oldUrl)} -> ${this.getPageType(newUrl)}`);
       
       if (this.callback) {
         try {
-          this.callback(newUrl, oldUrl);
+          // Small delay to ensure DOM is ready
+          setTimeout(() => {
+            this.callback(newUrl, oldUrl);
+          }, 50);
         } catch (error) {
           console.error('URL change callback error:', error);
         }
@@ -82,123 +122,55 @@ export class URLObserver {
     }
   }
 
-  // Get current video ID from URL
+  // Utility methods
   getCurrentVideoId() {
-    const urlParams = new URLSearchParams(location.search);
-    return urlParams.get('v');
+    const match = location.search.match(/[?&]v=([^&]+)/);
+    return match ? match[1] : null;
   }
 
-  // Check if current page is a watch page
   isWatchPage() {
-    return location.pathname === '/watch' && location.search.includes('v=');
+    return location.pathname === '/watch' && this.getCurrentVideoId() !== null;
   }
 
-  // Check if current page is YouTube homepage
-  isHomePage() {
-    return location.pathname === '/' || location.pathname === '/feed/trending';
-  }
-
-  // Check if current page is a channel page
-  isChannelPage() {
-    return location.pathname.startsWith('/channel/') || 
-           location.pathname.startsWith('/c/') || 
-           location.pathname.startsWith('/@');
-  }
-
-  // Check if current page is search results
-  isSearchPage() {
-    return location.pathname === '/results';
-  }
-
-  // Get page type
-  getPageType() {
-    if (this.isWatchPage()) return 'watch';
-    if (this.isHomePage()) return 'home';
-    if (this.isChannelPage()) return 'channel';
-    if (this.isSearchPage()) return 'search';
+  getPageType(url = location.href) {
+    const urlObj = new URL(url);
+    const pathname = urlObj.pathname;
+    
+    if (pathname === '/watch' && urlObj.search.includes('v=')) return 'watch';
+    if (pathname === '/' || pathname === '/feed/trending') return 'home';
+    if (pathname.startsWith('/channel/') || pathname.startsWith('/c/') || pathname.startsWith('/@')) return 'channel';
+    if (pathname === '/results') return 'search';
     return 'other';
   }
 
-  // Force check URL change (useful for debugging)
+  // Force immediate check (useful for debugging)
   forceCheck() {
     this.checkUrlChange();
   }
 
-  // Update callback function
+  // Update callback
   setCallback(callback) {
     this.callback = callback;
   }
 
-  // Get current URL
+  // Get current state
   getCurrentUrl() {
     return this.currentUrl;
   }
 
-  // Get URL parameters
-  getUrlParams() {
-    return new URLSearchParams(location.search);
-  }
-
-  // Check if URL has specific parameter
-  hasParam(paramName) {
-    return this.getUrlParams().has(paramName);
-  }
-
-  // Get specific URL parameter
-  getParam(paramName) {
-    return this.getUrlParams().get(paramName);
-  }
-
-  // Wait for navigation to complete
-  async waitForNavigation(timeout = 5000) {
-    return new Promise((resolve) => {
-      let resolved = false;
-      const startUrl = this.currentUrl;
-      
-      const checkComplete = () => {
-        // Check if URL changed and page is loaded
-        if (this.currentUrl !== startUrl && document.readyState === 'complete') {
-          if (!resolved) {
-            resolved = true;
-            resolve(true);
-          }
-        }
-      };
-      
-      // Set up temporary listener
-      const tempCallback = this.callback;
-      this.callback = () => {
-        if (tempCallback) tempCallback();
-        setTimeout(checkComplete, 100);
-      };
-      
-      // Timeout fallback
-      setTimeout(() => {
-        this.callback = tempCallback;
-        if (!resolved) {
-          resolved = true;
-          resolve(false);
-        }
-      }, timeout);
-      
-      // Check immediately
-      checkComplete();
-    });
-  }
-
   cleanup() {
-    if (this.observer) {
-      this.observer.disconnect();
-      this.observer = null;
+    this.isObserving = false;
+    this.callback = null;
+    
+    if (this.navigationTimeout) {
+      clearTimeout(this.navigationTimeout);
+      this.navigationTimeout = null;
     }
     
-    this.callback = null;
-    this.isObserving = false;
-    
-    console.log('URL observer cleaned up');
+    console.log('🧹 URL observer cleaned up');
   }
 
-  // Debug information
+  // Debug info
   getDebugInfo() {
     return {
       isObserving: this.isObserving,
@@ -206,7 +178,7 @@ export class URLObserver {
       pageType: this.getPageType(),
       videoId: this.getCurrentVideoId(),
       hasCallback: !!this.callback,
-      urlParams: Object.fromEntries(this.getUrlParams())
+      lastChangeTime: this.lastUrlChangeTime
     };
   }
 }

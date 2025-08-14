@@ -3,7 +3,7 @@ import { APIService } from './APIService.js';
 import { FactCheckEngine } from './FactCheckEngine.js';
 import { MessageHandler } from './MessageHandler.js';
 import { SettingsManager } from '../utils/SettingsManager.js';
-import { CacheManager } from '../utils/CacheManager.js';
+import { Cache } from '../utils/Cache.js';
 import { StatsManager } from '../utils/StatsManager.js';
 
 class BackgroundService {
@@ -12,7 +12,7 @@ class BackgroundService {
     this.factCheckEngine = new FactCheckEngine();
     this.messageHandler = new MessageHandler();
     this.settingsManager = new SettingsManager();
-    this.cacheManager = new CacheManager();
+    this.cache = new Cache('fact_check', 100, 1); // prefix, maxSize, expiryHours
     this.statsManager = new StatsManager();
     
     this.initialize();
@@ -21,7 +21,7 @@ class BackgroundService {
   initialize() {
     this.setupEventListeners();
     this.settingsManager.initializeDefaults();
-    this.cacheManager.startCleanupTimer();
+    this.cache.startCleanupTimer();
   }
 
   setupEventListeners() {
@@ -39,7 +39,7 @@ class BackgroundService {
     });
 
     chrome.runtime.onStartup.addListener(() => {
-      this.cacheManager.cleanupExpired();
+      this.cache.cleanExpired();
     });
   }
 

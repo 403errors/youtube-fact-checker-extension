@@ -1,4 +1,4 @@
-// Message routing and handling
+// Message routing and handling - Fixed to support forceRefresh
 import { SettingsManager } from '../utils/SettingsManager.js';
 import { APIService } from './APIService.js';
 import { FactCheckEngine } from './FactCheckEngine.js';
@@ -36,6 +36,9 @@ export class MessageHandler {
         case 'RESET_SETTINGS':
           await this.handleResetSettings(sendResponse);
           break;
+        case 'CLEAR_CACHE':
+          await this.handleClearCache(message.videoId, sendResponse);
+          break;
         default:
           sendResponse({ success: false, error: 'Unknown message type' });
       }
@@ -66,7 +69,20 @@ export class MessageHandler {
 
   async handleFactCheckRequest(data, sender, sendResponse) {
     try {
-      const result = await this.factCheckEngine.process(data, sender);
+      // Check for force refresh flag
+      const forceRefresh = data.forceRefresh === true;
+      
+      if (forceRefresh) {
+        console.log('🔄 Force refresh requested - bypassing cache');
+        
+        // Clear cache for this specific request
+        if (data.videoId) {
+          this.factCheckEngine.clearCache(data.videoId);
+        }
+      }
+      
+      // Pass force refresh flag to engine
+      const result = await this.factCheckEngine.process(data, sender, forceRefresh);
       sendResponse(result);
     } catch (error) {
       sendResponse({ success: false, error: error.message });
@@ -106,6 +122,22 @@ export class MessageHandler {
       await this.settingsManager.reset();
       sendResponse({ success: true });
     } catch (error) {
+      sendResponse({ success: false, error: error.message });
+    }
+  }
+
+  async handleClearCache(videoId, sendResponse) {
+    try {
+      if (videoId) {
+        this.factCheckEngine.clearCache(videoId);
+        console.log('🗑️ Cleared cache for video:', videoId);
+      } else {
+        this.factCheckEngine.clearAllCache();
+        console.log('🗑️ Cleared all cache');
+      }
+      sendResponse({ success: true });
+    } catch (error) {
+      console.error('Cache clear error:', error);
       sendResponse({ success: false, error: error.message });
     }
   }

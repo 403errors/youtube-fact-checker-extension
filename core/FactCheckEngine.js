@@ -1,7 +1,7 @@
-// Advanced fact-checking processing engine
+// Advanced fact-checking processing engine - Fixed to support force refresh
 import { APIService } from './APIService.js';
 import { SettingsManager } from '../utils/SettingsManager.js';
-import { CacheManager } from '../utils/CacheManager.js';
+import { Cache } from '../utils/Cache.js';
 import { StatsManager } from '../utils/StatsManager.js';
 import { ModelConfig } from '../utils/ModelConfig.js';
 
@@ -9,12 +9,12 @@ export class FactCheckEngine {
   constructor() {
     this.apiService = new APIService();
     this.settingsManager = new SettingsManager();
-    this.cacheManager = new CacheManager();
+    this.cache = new Cache('fact_check_results', 100, 1); // prefix, maxSize, expiryHours
     this.statsManager = new StatsManager();
     this.modelConfig = new ModelConfig();
   }
 
-  async process(data, sender) {
+  async process(data, sender, forceRefresh = false) {
     const settings = await this.settingsManager.getAll();
     
     if (!settings.enabled) {
@@ -34,13 +34,22 @@ export class FactCheckEngine {
     }
 
     const contentType = this.detectContentType(data.transcript);
-    const cacheKey = this.cacheManager.generateKey(data.transcript, settings, contentType);
+    const cacheKey = this.cache.generateFactCheckKey(data.transcript, settings, contentType);
     
-    if (settings.cacheResults) {
-      const cachedResult = this.cacheManager.get(cacheKey);
+    // Check cache ONLY if not force refreshing
+    if (settings.cacheResults && !forceRefresh) {
+      const cachedResult = this.cache.get(cacheKey);
       if (cachedResult) {
+        console.log('📋 Using cached results (not force refresh)');
         return { success: true, result: cachedResult, cached: true, contentType };
       }
+    }
+
+    // Force refresh - skip cache completely
+    if (forceRefresh) {
+      console.log('🔄 Force refresh - performing fresh analysis');
+      // Clear this specific cache entry
+      this.cache.delete(cacheKey);
     }
 
     const prompt = this.createPrompt(data.transcript, settings, contentType);
@@ -54,8 +63,9 @@ export class FactCheckEngine {
     const result = this.parseResponse(responseText, contentType);
     const validatedResult = this.validateResults(result, settings.confidenceThreshold);
     
+    // Cache the fresh result (even after force refresh)
     if (settings.cacheResults) {
-      this.cacheManager.set(cacheKey, validatedResult);
+      this.cache.set(cacheKey, validatedResult);
     }
     
     await this.statsManager.update(validatedResult);
@@ -63,18 +73,38 @@ export class FactCheckEngine {
     return { 
       success: true, 
       result: validatedResult, 
-      cached: false, 
+      cached: false, // Always false for fresh analysis
       contentType: contentType,
+      forceRefresh: forceRefresh,
       analysisMetadata: {
         confidence: this.calculateOverallConfidence(validatedResult),
         claimTypes: this.categorizeClaimTypes(validatedResult),
         reliability: this.assessResultReliability(validatedResult),
         groundingUsed: settings.useGroundingSearch,
-        modelUsed: this.modelConfig.selectModel(settings)
+        modelUsed: this.modelConfig.selectModel(settings),
+        analysisTime: new Date().toISOString()
       }
     };
   }
 
+  // Cache management methods
+  clearCache(videoId) {
+    if (videoId) {
+      // Clear cache entries related to this video
+      const keys = this.cache.keys();
+      const videoKeys = keys.filter(key => key.includes(videoId) || key.includes('fact_check'));
+      videoKeys.forEach(key => this.cache.delete(key));
+      
+      console.log(`🗑️ Cleared ${videoKeys.length} cache entries for video: ${videoId}`);
+    }
+  }
+
+  clearAllCache() {
+    this.cache.clear();
+    console.log('🗑️ Cleared all fact-check cache');
+  }
+
+  // Rest of the methods remain the same...
   detectContentType(transcript) {
     const patterns = this.modelConfig.getContentPatterns();
     const lowercaseTranscript = transcript.toLowerCase();

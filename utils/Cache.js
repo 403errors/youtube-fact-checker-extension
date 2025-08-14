@@ -232,6 +232,29 @@ export class Cache {
     this.debug = Boolean(enabled);
   }
 
+  // Generate cache key for fact-check results (replaces CacheManager.generateKey)
+  generateFactCheckKey(transcript, settings, contentType) {
+    const content = transcript.substring(0, 1000) + 
+                   settings.language + 
+                   contentType + 
+                   (settings.usePremiumModel ? 'premium' : 'lite') + 
+                   (settings.strictMode ? 'strict' : 'normal') +
+                   (settings.useGroundingSearch ? 'grounding' : 'nogrounding');
+    
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return `fact_check_${Math.abs(hash)}_${contentType}_${settings.useGroundingSearch ? 'grounded' : 'knowledge'}`;
+  }
+
+  // Start automatic cleanup timer (replaces CacheManager.startCleanupTimer)
+  startCleanupTimer() {
+    setInterval(() => this.cleanExpired(), this.expiryMs);
+  }
+
   // Debug: List all entries with details (only when debug enabled)
   debugList() {
     if (!this.debug) return;
