@@ -1,6 +1,6 @@
-// TranscriptExtractor - Coordinates all transcript extraction methods
+// TranscriptExtractor - Optimized transcript extraction coordinator
 // Handles prioritization, caching, and fallback strategies
-// Updated with the two most reliable methods + UI Automation fallback
+// Conditional logging based on Constants.DEBUG settings
 
 import { HybridOfficial } from './methods/HybridOfficial.js';
 import { InnertubeAPI } from './methods/InnertubeAPI.js';
@@ -19,11 +19,11 @@ export class TranscriptExtractor {
       lastExtraction: null
     };
     
-    // Initialize extraction methods in priority order (most reliable first)
+    // Initialize extraction methods in priority order
     this.methods = [
-      new HybridOfficial(),    // Method 1: 95% success rate - Official API + Innertube fallback
-      new InnertubeAPI(),      // Method 2: 92% success rate - Innertube with Android client
-      new UIAutomation()       // Method 3: UI automation fallback (user-requested)
+      new HybridOfficial(),    // 95% success rate
+      new InnertubeAPI(),      // 92% success rate  
+      new UIAutomation()       // UI automation fallback
     ];
 
     // Initialize method success tracking
@@ -36,13 +36,17 @@ export class TranscriptExtractor {
       };
     });
 
-    console.log('🚀 TranscriptExtractor initialized with 3 methods:', 
-      this.methods.map(m => m.name).join(', '));
+    if (Constants.DEBUG.ENABLED) {
+      console.log('🚀 TranscriptExtractor initialized with methods:', 
+        this.methods.map(m => m.name).join(', '));
+    }
   }
 
   async extract(videoId, options = {}) {
     if (!videoId) {
-      console.error('No video ID provided for transcript extraction');
+      if (Constants.DEBUG.ENABLED) {
+        console.error('No video ID provided for transcript extraction');
+      }
       return null;
     }
 
@@ -53,35 +57,36 @@ export class TranscriptExtractor {
       maxMethods = this.methods.length
     } = options;
 
-    // Check cache first (unless forced refresh or skipping cache)
+    // Check cache first
     if (!forceRefresh && !skipCache) {
       const cacheKey = `transcript_${videoId}_${preferredLanguage}`;
       const cached = this.cache.get(cacheKey);
       if (cached) {
-        console.log('📦 Using cached transcript for video:', videoId);
+        if (Constants.DEBUG.ENABLED) {
+          console.log('📦 Using cached transcript for video:', videoId);
+        }
         this.updateStats(null, true, 0, 'cache');
         return cached;
       }
     }
 
-    // Prevent concurrent extractions for the same video
+    // Prevent concurrent extractions
     const extractionKey = `extracting_${videoId}`;
     if (this.isExtracting === extractionKey) {
-      console.log('⏳ Transcript extraction already in progress for this video');
       return null;
     }
 
     this.isExtracting = extractionKey;
     this.extractionStats.totalAttempts++;
     
-    console.log(`🔍 Starting transcript extraction for video: ${videoId}`);
-    console.log(`📊 Using up to ${Math.min(maxMethods, this.methods.length)} methods`);
+    if (Constants.DEBUG.ENABLED) {
+      console.log(`🔍 Starting extraction for video: ${videoId}`);
+    }
 
     const startTime = Date.now();
     let lastError = null;
 
     try {
-      // Try each method in priority order
       const methodsToTry = this.methods.slice(0, maxMethods);
       
       for (let i = 0; i < methodsToTry.length; i++) {
@@ -89,13 +94,13 @@ export class TranscriptExtractor {
         const methodName = method.constructor.name;
         const methodStartTime = Date.now();
         
-        console.log(`📋 Method ${i + 1}/${methodsToTry.length}: ${methodName}`);
+        if (Constants.DEBUG.ENABLED) {
+          console.log(`📋 Method ${i + 1}/${methodsToTry.length}: ${methodName}`);
+        }
         
-        // Update method attempt stats
         this.extractionStats.methodSuccesses[methodName].attempts++;
         
         try {
-          // Add timeout wrapper for each method
           const transcript = await this.executeWithTimeout(
             method.extract(videoId, { language: preferredLanguage }),
             Constants.TIMEOUTS.PLAYER_RESPONSE_WAIT,
@@ -105,9 +110,9 @@ export class TranscriptExtractor {
           const methodDuration = Date.now() - methodStartTime;
           
           if (this.isValidTranscript(transcript)) {
-            console.log(`✅ SUCCESS with ${methodName}!`);
-            console.log(`📝 Transcript length: ${transcript.length} characters`);
-            console.log(`⏱️ Extraction time: ${methodDuration}ms`);
+            if (Constants.DEBUG.ENABLED) {
+              console.log(`✅ SUCCESS with ${methodName}! Length: ${transcript.length} chars (${methodDuration}ms)`);
+            }
             
             // Cache successful result
             if (!skipCache) {
@@ -115,7 +120,6 @@ export class TranscriptExtractor {
               this.cache.set(cacheKey, transcript);
             }
             
-            // Update statistics
             this.updateStats(methodName, true, methodDuration, 'method');
             this.extractionStats.successCount++;
             this.extractionStats.lastExtraction = {
@@ -128,29 +132,25 @@ export class TranscriptExtractor {
             
             return transcript;
           } else {
-            console.log(`❌ ${methodName} returned invalid transcript`);
             lastError = new Error(`${methodName} returned invalid transcript`);
             this.updateStats(methodName, false, methodDuration, 'method');
           }
         } catch (error) {
           const methodDuration = Date.now() - methodStartTime;
-          console.log(`❌ ${methodName} failed: ${error.message}`);
           lastError = error;
           this.updateStats(methodName, false, methodDuration, 'method');
           
-          // Log additional error details for debugging
           if (Constants.DEBUG.ENABLED) {
-            console.log(`🔍 ${methodName} error details:`, {
-              message: error.message,
-              stack: error.stack?.split('\n').slice(0, 3),
-              duration: methodDuration
-            });
+            console.log(`❌ ${methodName} failed: ${error.message}`);
           }
         }
       }
 
       // All methods failed
-      console.log('❌ All transcript extraction methods failed');
+      if (Constants.DEBUG.ENABLED) {
+        console.log('❌ All transcript extraction methods failed');
+      }
+      
       this.extractionStats.lastExtraction = {
         videoId,
         method: 'all_failed',
@@ -163,7 +163,10 @@ export class TranscriptExtractor {
       return null;
 
     } catch (error) {
-      console.error('Transcript extraction error:', error);
+      if (Constants.DEBUG.ENABLED) {
+        console.error('Transcript extraction error:', error);
+      }
+      
       this.extractionStats.lastExtraction = {
         videoId,
         method: 'extraction_error',
@@ -176,11 +179,9 @@ export class TranscriptExtractor {
     } finally {
       this.isExtracting = false;
       
-      // Log extraction summary
-      const totalDuration = Date.now() - startTime;
-      console.log(`🏁 Extraction completed in ${totalDuration}ms`);
-      
       if (Constants.DEBUG.LOG_TIMING) {
+        const totalDuration = Date.now() - startTime;
+        console.log(`🏁 Extraction completed in ${totalDuration}ms`);
         this.logExtractionStats();
       }
     }
@@ -212,18 +213,21 @@ export class TranscriptExtractor {
   }
 
   async testAllMethods(videoId, options = {}) {
+    if (!Constants.DEBUG.ENABLED) {
+      console.log('Debug mode disabled - enable Constants.DEBUG.ENABLED to test methods');
+      return {};
+    }
+
     console.log('🧪 Testing all transcript extraction methods...');
     const results = {};
     
     for (const method of this.methods) {
       const methodName = method.constructor.name;
       try {
-        console.log(`Testing ${methodName}...`);
         const startTime = Date.now();
-        
         const result = await this.executeWithTimeout(
           method.extract(videoId, options),
-          Constants.TIMEOUTS.PLAYER_RESPONSE_WAIT * 2, // Give extra time for testing
+          Constants.TIMEOUTS.PLAYER_RESPONSE_WAIT * 2,
           `${methodName} test timeout`
         );
         
@@ -276,6 +280,8 @@ export class TranscriptExtractor {
   }
 
   logExtractionStats() {
+    if (!Constants.DEBUG.LOG_TIMING) return;
+
     console.log('📊 Extraction Statistics:');
     console.log(`Total Attempts: ${this.extractionStats.totalAttempts}`);
     console.log(`Success Rate: ${((this.extractionStats.successCount / this.extractionStats.totalAttempts) * 100).toFixed(1)}%`);
@@ -292,16 +298,7 @@ export class TranscriptExtractor {
   }
 
   clearCache(videoId) {
-    if (videoId) {
-      // Clear specific video cache
-      const keys = this.cache.keys().filter(key => key.includes(videoId));
-      keys.forEach(key => this.cache.delete(key));
-      console.log(`🗑️ Cleared cache for video: ${videoId}`);
-    } else {
-      // Clear all transcript cache
-      this.cache.clear();
-      console.log('🗑️ Cleared all transcript cache');
-    }
+    this.cache.clearTranscript(videoId);
   }
 
   getCacheInfo() {
@@ -325,14 +322,16 @@ export class TranscriptExtractor {
     };
   }
 
-  // Priority method testing (for the most reliable method)
+  // Priority method testing
   async testPriorityMethod(videoId, options = {}) {
     if (this.methods.length === 0) return null;
     
     const priorityMethod = this.methods[0];
     const methodName = priorityMethod.constructor.name;
     
-    console.log(`🎯 Testing priority method: ${methodName}`);
+    if (Constants.DEBUG.ENABLED) {
+      console.log(`🎯 Testing priority method: ${methodName}`);
+    }
     
     try {
       const startTime = Date.now();
@@ -345,17 +344,21 @@ export class TranscriptExtractor {
       const duration = Date.now() - startTime;
       const success = this.isValidTranscript(result);
       
-      console.log(`Priority method result:`, {
-        method: methodName,
-        success,
-        length: result?.length || 0,
-        duration: `${duration}ms`,
-        preview: result?.substring(0, 200) || 'No result'
-      });
+      if (Constants.DEBUG.ENABLED) {
+        console.log(`Priority method result:`, {
+          method: methodName,
+          success,
+          length: result?.length || 0,
+          duration: `${duration}ms`,
+          preview: result?.substring(0, 200) || 'No result'
+        });
+      }
       
       return result;
     } catch (error) {
-      console.error(`Priority method ${methodName} failed:`, error);
+      if (Constants.DEBUG.ENABLED) {
+        console.error(`Priority method ${methodName} failed:`, error);
+      }
       return null;
     }
   }
@@ -370,7 +373,9 @@ export class TranscriptExtractor {
       includeMetadata = false
     } = config;
 
-    console.log(`🔬 Advanced extraction for ${videoId} with config:`, config);
+    if (Constants.DEBUG.ENABLED) {
+      console.log(`🔬 Advanced extraction for ${videoId} with config:`, config);
+    }
 
     let methodsToTry = this.methods;
     
@@ -410,7 +415,9 @@ export class TranscriptExtractor {
           return result;
         }
       } catch (error) {
-        console.log(`Advanced extraction attempt ${attempt + 1} failed:`, error.message);
+        if (Constants.DEBUG.ENABLED) {
+          console.log(`Advanced extraction attempt ${attempt + 1} failed:`, error.message);
+        }
         if (attempt < retryAttempts - 1) {
           await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
         }

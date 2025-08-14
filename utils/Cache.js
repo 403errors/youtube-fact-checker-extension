@@ -1,5 +1,6 @@
-// Cache.js - Simple in-memory caching utility
+// Cache.js - Optimized in-memory caching utility
 // Provides caching functionality with size limits and expiration
+// Removed excessive logging for production performance
 
 export class Cache {
   constructor(prefix = 'cache', maxSize = 5, expiryHours = 24) {
@@ -7,6 +8,7 @@ export class Cache {
     this.maxSize = maxSize;
     this.expiryMs = expiryHours * 60 * 60 * 1000;
     this.data = new Map();
+    this.debug = false; // Set to true only for debugging
   }
 
   // Generate cache key with prefix
@@ -30,11 +32,13 @@ export class Cache {
     if (this.data.size >= this.maxSize) {
       const oldestKey = this.data.keys().next().value;
       this.data.delete(oldestKey);
-      console.log(`Cache: Removed oldest entry ${oldestKey}`);
     }
 
     this.data.set(cacheKey, entry);
-    console.log(`Cache: Set ${cacheKey}, cache size: ${this.data.size}`);
+    
+    if (this.debug) {
+      console.log(`Cache: Set ${cacheKey}, cache size: ${this.data.size}`);
+    }
   }
 
   // Get value from cache
@@ -49,11 +53,9 @@ export class Cache {
     // Check if expired
     if (Date.now() > entry.expires) {
       this.data.delete(cacheKey);
-      console.log(`Cache: Expired entry removed ${cacheKey}`);
       return null;
     }
 
-    console.log(`Cache: Hit for ${cacheKey}`);
     return entry.value;
   }
 
@@ -78,20 +80,12 @@ export class Cache {
   // Delete specific key
   delete(key) {
     const cacheKey = this.getKey(key);
-    const deleted = this.data.delete(cacheKey);
-    
-    if (deleted) {
-      console.log(`Cache: Deleted ${cacheKey}`);
-    }
-    
-    return deleted;
+    return this.data.delete(cacheKey);
   }
 
   // Clear all cache
   clear() {
-    const size = this.data.size;
     this.data.clear();
-    console.log(`Cache: Cleared ${size} entries`);
   }
 
   // Remove expired entries
@@ -104,10 +98,6 @@ export class Cache {
         this.data.delete(key);
         removedCount++;
       }
-    }
-
-    if (removedCount > 0) {
-      console.log(`Cache: Cleaned ${removedCount} expired entries`);
     }
 
     return removedCount;
@@ -204,7 +194,6 @@ export class Cache {
     }
 
     this.data.set(cacheKey, entry);
-    console.log(`Cache: Set ${cacheKey} with custom expiry ${expiryMs}ms`);
   }
 
   // Touch entry to refresh its expiry
@@ -214,15 +203,39 @@ export class Cache {
     
     if (entry && Date.now() <= entry.expires) {
       entry.expires = Date.now() + this.expiryMs;
-      console.log(`Cache: Touched ${cacheKey}, extended expiry`);
       return true;
     }
     
     return false;
   }
 
-  // Debug: List all entries with details
+  // Clear cache for specific video (transcript-specific utility)
+  clearTranscript(videoId) {
+    if (videoId) {
+      const keys = this.keys().filter(key => key.includes(videoId));
+      keys.forEach(key => this.delete(key));
+      
+      if (this.debug && keys.length > 0) {
+        console.log(`Cache: Cleared ${keys.length} entries for video: ${videoId}`);
+      }
+    } else {
+      this.clear();
+      
+      if (this.debug) {
+        console.log('Cache: Cleared all entries');
+      }
+    }
+  }
+
+  // Enable/disable debug logging
+  setDebug(enabled) {
+    this.debug = Boolean(enabled);
+  }
+
+  // Debug: List all entries with details (only when debug enabled)
   debugList() {
+    if (!this.debug) return;
+    
     this.cleanExpired();
     console.log(`Cache Debug - Prefix: ${this.prefix}, Size: ${this.data.size}/${this.maxSize}`);
     

@@ -1,6 +1,6 @@
-// HybridOfficial.js - Hybrid Official/Unofficial Approach
-// Combines YouTube Data API with Innertube fallback for maximum reliability (95% success rate)
-// Prioritizes official channels while maintaining broad coverage
+// HybridOfficial.js - Optimized Hybrid Official/Unofficial Approach
+// Combines YouTube Data API with Innertube fallback for maximum reliability
+// Conditional logging for production performance
 
 import { Constants } from '../../utils/Constants.js';
 
@@ -15,36 +15,52 @@ export class HybridOfficial {
   }
 
   async extract(videoId) {
-    console.log(`🌟 Starting Hybrid Official extraction for video: ${videoId}`);
+    if (Constants.DEBUG.ENABLED) {
+      console.log(`🌟 Starting Hybrid Official extraction for video: ${videoId}`);
+    }
     
     try {
       // Method 1: Try Official YouTube Data API (if authenticated)
       if (this.canUseOfficialAPI()) {
         try {
-          console.log('🔑 Attempting official YouTube Data API...');
+          if (Constants.DEBUG.ENABLED) {
+            console.log('🔑 Attempting official YouTube Data API...');
+          }
+          
           const officialResult = await this.extractViaOfficial(videoId);
           if (this.isValidTranscript(officialResult)) {
-            console.log(`✅ SUCCESS via Official API, length: ${officialResult.length}`);
+            if (Constants.DEBUG.ENABLED) {
+              console.log(`✅ SUCCESS via Official API, length: ${officialResult.length}`);
+            }
             return officialResult;
           }
         } catch (error) {
-          console.log('⚠️ Official API failed, trying fallback:', error.message);
+          if (Constants.DEBUG.ENABLED) {
+            console.log('⚠️ Official API failed, trying fallback:', error.message);
+          }
         }
       }
 
       // Method 2: Fallback to Innertube API
       if (this.rateLimiter.canMakeRequest()) {
         try {
-          console.log('🔄 Fallback to Innertube API...');
+          if (Constants.DEBUG.ENABLED) {
+            console.log('🔄 Fallback to Innertube API...');
+          }
+          
           const innertubeResult = await this.extractViaInnertube(videoId);
           this.rateLimiter.recordRequest();
           
           if (this.isValidTranscript(innertubeResult)) {
-            console.log(`✅ SUCCESS via Innertube fallback, length: ${innertubeResult.length}`);
+            if (Constants.DEBUG.ENABLED) {
+              console.log(`✅ SUCCESS via Innertube fallback, length: ${innertubeResult.length}`);
+            }
             return innertubeResult;
           }
         } catch (error) {
-          console.error('❌ Innertube API also failed:', error);
+          if (Constants.DEBUG.ENABLED) {
+            console.error('❌ Innertube API also failed:', error);
+          }
           throw new Error(`All extraction methods failed: ${error.message}`);
         }
       } else {
@@ -54,7 +70,9 @@ export class HybridOfficial {
       throw new Error('No valid transcript found with any method');
 
     } catch (error) {
-      console.error(`❌ Hybrid Official extraction failed: ${error.message}`);
+      if (Constants.DEBUG.ENABLED) {
+        console.error(`❌ Hybrid Official extraction failed: ${error.message}`);
+      }
       throw error;
     }
   }
@@ -63,11 +81,11 @@ export class HybridOfficial {
     // Try to extract API key from current page
     try {
       this.apiKey = await this.extractAPIKeyFromPage();
-      if (this.apiKey) {
+      if (this.apiKey && Constants.DEBUG.ENABLED) {
         console.log('🔑 API key extracted from page');
       }
     } catch (error) {
-      console.log('⚠️ Could not extract API key from page');
+      // Silent failure for API key extraction
     }
 
     // Try to get OAuth token (if extension has permissions)
@@ -77,14 +95,16 @@ export class HybridOfficial {
           interactive: false 
         }, (token) => {
           if (chrome.runtime.lastError) {
-            console.log('OAuth not available:', chrome.runtime.lastError.message);
+            // Silent failure for OAuth
           } else if (token) {
             this.authToken = token;
-            console.log('🔐 OAuth token obtained for official API');
+            if (Constants.DEBUG.ENABLED) {
+              console.log('🔐 OAuth token obtained for official API');
+            }
           }
         });
       } catch (error) {
-        console.log('OAuth setup failed:', error);
+        // Silent failure for OAuth setup
       }
     }
   }
@@ -98,11 +118,9 @@ export class HybridOfficial {
     let apiUrl;
 
     if (this.authToken) {
-      // Use OAuth token
       headers['Authorization'] = `Bearer ${this.authToken}`;
       apiUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}`;
     } else if (this.apiKey) {
-      // Use API key
       apiUrl = `https://www.googleapis.com/youtube/v3/captions?part=snippet&videoId=${videoId}&key=${this.apiKey}`;
     } else {
       throw new Error('No authentication method available');
@@ -139,7 +157,9 @@ export class HybridOfficial {
   }
 
   async extractViaInnertube(videoId) {
-    console.log('🔧 Using Innertube API with Android client impersonation...');
+    if (Constants.DEBUG.ENABLED) {
+      console.log('🔧 Using Innertube API with Android client impersonation...');
+    }
     
     // Step 1: Get API key from YouTube page
     const apiKey = await this.extractAPIKeyFromPage();
@@ -219,7 +239,9 @@ export class HybridOfficial {
       
       return fallbackMatch ? fallbackMatch[1] : null;
     } catch (error) {
-      console.error('Error extracting API key:', error);
+      if (Constants.DEBUG.ENABLED) {
+        console.error('Error extracting API key:', error);
+      }
       return null;
     }
   }
@@ -290,10 +312,15 @@ export class HybridOfficial {
         .replace(/\s+/g, ' ')
         .trim();
       
-      console.log(`📄 Parsed official format: ${transcriptParts.length} segments, ${fullTranscript.length} chars`);
+      if (Constants.DEBUG.ENABLED) {
+        console.log(`📄 Parsed official format: ${transcriptParts.length} segments, ${fullTranscript.length} chars`);
+      }
+      
       return fullTranscript;
     } catch (error) {
-      console.error('Error parsing official format:', error);
+      if (Constants.DEBUG.ENABLED) {
+        console.error('Error parsing official format:', error);
+      }
       throw new Error('Failed to parse official transcript format');
     }
   }
@@ -322,10 +349,15 @@ export class HybridOfficial {
         .replace(/\s+/g, ' ')
         .trim();
       
-      console.log(`📄 Parsed Innertube format: ${transcriptParts.length} segments, ${fullTranscript.length} chars`);
+      if (Constants.DEBUG.ENABLED) {
+        console.log(`📄 Parsed Innertube format: ${transcriptParts.length} segments, ${fullTranscript.length} chars`);
+      }
+      
       return fullTranscript;
     } catch (error) {
-      console.error('Error parsing Innertube format:', error);
+      if (Constants.DEBUG.ENABLED) {
+        console.error('Error parsing Innertube format:', error);
+      }
       throw new Error('Failed to parse Innertube transcript format');
     }
   }
@@ -335,9 +367,27 @@ export class HybridOfficial {
            typeof transcript === 'string' && 
            transcript.trim().length >= Constants.MIN_TRANSCRIPT_LENGTH;
   }
+
+  // Get method statistics (for debugging)
+  getStats() {
+    return {
+      name: this.name,
+      successRate: this.successRate,
+      rateLimitInfo: {
+        canMakeRequest: this.rateLimiter.canMakeRequest(),
+        remaining: this.rateLimiter.getRemainingRequests(),
+        resetTime: this.rateLimiter.getResetTime()
+      },
+      authStatus: {
+        hasApiKey: !!this.apiKey,
+        hasAuthToken: !!this.authToken,
+        canUseOfficial: this.canUseOfficialAPI()
+      }
+    };
+  }
 }
 
-// Rate limiting utility class
+// Rate limiting utility class - optimized with reduced logging
 class RateLimiter {
   constructor(maxRequests = 50, windowMs = 60000) {
     this.requests = [];
