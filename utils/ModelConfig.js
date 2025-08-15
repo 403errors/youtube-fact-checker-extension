@@ -1,13 +1,15 @@
-// Model configurations, content patterns, and verification rules
+// Fixed Model configurations - Corrected grounding support detection
 export class ModelConfig {
   constructor() {
     this.models = {
+      // Gemini 2.5 series - all support grounding with Google Search
       default: 'gemini-2.5-flash-lite',
       premium: 'gemini-2.5-flash',
-      grounding: 'gemini-2.5-flash-lite',
+      grounding: 'gemini-2.5-flash-lite', // Updated to use 2.5 series
       fallbacks: [
         'gemini-2.0-flash-lite',
-        'gemini-2.0-flash'
+        'gemini-2.0-flash',
+        'gemini-1.5-flash' // Keep 1.5 as fallback option
       ]
     };
 
@@ -129,15 +131,27 @@ export class ModelConfig {
   }
 
   selectModel(settings) {
+    // For grounding search, use default 2.5 model (supports grounding)
     if (settings.useGroundingSearch) {
-      return this.models.grounding;
+      console.log('🌐 Grounding search enabled - using 2.5 series model with grounding support');
+      return settings.usePremiumModel ? this.models.premium : this.models.default;
     }
+    // Otherwise use standard model selection
     return settings.usePremiumModel ? this.models.premium : this.models.default;
   }
 
   supportsGrounding(model) {
-    // Only 1.5 series models support grounding search
-    return model.includes('1.5-flash') || model.includes('1.5-pro');
+    // Gemini 2.5 models (Flash-Lite, Flash, Pro) support grounding with Google Search
+    // Gemini 1.5 models also support grounding
+    return model.includes('2.5-flash') || 
+           model.includes('2.5-pro') || 
+           model.includes('1.5-flash') || 
+           model.includes('1.5-pro');
+  }
+
+  getCompatibleGroundingModel() {
+    // Return the default 2.5 model which supports grounding
+    return this.models.default; // gemini-2.5-flash-lite
   }
 
   getContentPatterns() {
@@ -152,27 +166,38 @@ export class ModelConfig {
     const info = {
       'gemini-2.5-flash': {
         name: 'Gemini 2.5 Flash',
-        description: 'Latest premium model with enhanced reasoning and superior fact-checking capabilities',
-        features: ['Advanced reasoning', 'High accuracy', 'Fast processing'],
-        supportsGrounding: false
+        description: 'Latest premium model with enhanced reasoning, superior fact-checking, and Google Search grounding',
+        features: ['Advanced reasoning', 'High accuracy', 'Fast processing', 'Google Search grounding'],
+        supportsGrounding: true,
+        recommended: true
       },
       'gemini-2.5-flash-lite': {
         name: 'Gemini 2.5 Flash Lite',
-        description: 'Efficient model optimized for speed with excellent fact-checking performance',
-        features: ['Optimized speed', 'Good accuracy', 'Resource efficient'],
-        supportsGrounding: false
+        description: 'Efficient model optimized for speed with excellent fact-checking and grounding support',
+        features: ['Optimized speed', 'Good accuracy', 'Resource efficient', 'Google Search grounding'],
+        supportsGrounding: true,
+        recommended: true
+      },
+      'gemini-1.5-flash': {
+        name: 'Gemini 1.5 Flash',
+        description: 'Previous generation model with grounding search support',
+        features: ['Real-time search', 'Grounding support', 'Current information'],
+        supportsGrounding: true,
+        recommended: false // Use 2.5 series instead for better performance
       },
       'gemini-2.0-flash': {
         name: 'Gemini 2.0 Flash',
         description: 'Reliable fallback model with proven performance',
         features: ['Proven reliability', 'Good performance', 'Stable results'],
-        supportsGrounding: false
+        supportsGrounding: false,
+        recommended: false
       },
       'gemini-2.0-flash-lite': {
         name: 'Gemini 2.0 Flash Lite',
         description: 'Lightweight fallback option for basic fact-checking',
         features: ['Lightweight', 'Basic accuracy', 'Fast response'],
-        supportsGrounding: false
+        supportsGrounding: false,
+        recommended: false
       }
     };
 
@@ -180,7 +205,95 @@ export class ModelConfig {
       name: modelName,
       description: 'Unknown model',
       features: [],
-      supportsGrounding: false
+      supportsGrounding: false,
+      recommended: false
+    };
+  }
+
+  // Get model recommendations based on settings
+  getModelRecommendation(settings) {
+    if (settings.useGroundingSearch) {
+      return {
+        primary: this.models.grounding,
+        reason: 'Grounding search requires 1.5 series model',
+        fallbacks: this.models.fallbacks.filter(m => this.supportsGrounding(m))
+      };
+    }
+    
+    if (settings.usePremiumModel) {
+      return {
+        primary: this.models.premium,
+        reason: 'Premium model selected for enhanced performance',
+        fallbacks: [this.models.default, ...this.models.fallbacks]
+      };
+    }
+    
+    return {
+      primary: this.models.default,
+      reason: 'Default model for optimal speed and accuracy balance',
+      fallbacks: this.models.fallbacks
+    };
+  }
+
+  // Check if settings combination is valid
+  validateSettings(settings) {
+    const issues = [];
+    
+    if (settings.useGroundingSearch && settings.usePremiumModel) {
+      issues.push({
+        type: 'warning',
+        message: 'Grounding search takes precedence over premium model selection',
+        suggestion: 'Consider using either grounding search OR premium model, not both'
+      });
+    }
+    
+    return {
+      valid: issues.filter(i => i.type === 'error').length === 0,
+      issues: issues
+    };
+  }
+
+  // Get performance expectations
+  getPerformanceProfile(modelName) {
+    const profiles = {
+      'gemini-2.5-flash': {
+        speed: 'fast',
+        accuracy: 'excellent',
+        cost: 'premium',
+        reliability: 'very-high'
+      },
+      'gemini-2.5-flash-lite': {
+        speed: 'very-fast',
+        accuracy: 'very-good',
+        cost: 'standard',
+        reliability: 'high'
+      },
+      'gemini-1.5-flash': {
+        speed: 'moderate',
+        accuracy: 'good',
+        cost: 'premium',
+        reliability: 'high',
+        specialFeature: 'real-time-search'
+      },
+      'gemini-2.0-flash': {
+        speed: 'fast',
+        accuracy: 'good',
+        cost: 'standard',
+        reliability: 'moderate'
+      },
+      'gemini-2.0-flash-lite': {
+        speed: 'very-fast',
+        accuracy: 'moderate',
+        cost: 'low',
+        reliability: 'moderate'
+      }
+    };
+
+    return profiles[modelName] || {
+      speed: 'unknown',
+      accuracy: 'unknown',
+      cost: 'unknown',
+      reliability: 'unknown'
     };
   }
 }

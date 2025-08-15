@@ -1,5 +1,8 @@
-// Advanced fact-checking processing engine - Fixed to support force refresh
+// Enhanced FactCheckEngine.js - Updated to work with processed transcripts
+// Now uses segmented, cleaned transcript data for more accurate fact-checking
+
 import { APIService } from './APIService.js';
+import { TranscriptProcessor } from '../transcript/TranscriptProcessor.js';
 import { SettingsManager } from '../utils/SettingsManager.js';
 import { Cache } from '../utils/Cache.js';
 import { StatsManager } from '../utils/StatsManager.js';
@@ -8,6 +11,7 @@ import { ModelConfig } from '../utils/ModelConfig.js';
 export class FactCheckEngine {
   constructor() {
     this.apiService = new APIService();
+    this.transcriptProcessor = new TranscriptProcessor();
     this.settingsManager = new SettingsManager();
     this.cache = new Cache('fact_check_results', 100, 1); // prefix, maxSize, expiryHours
     this.statsManager = new StatsManager();
@@ -33,26 +37,186 @@ export class FactCheckEngine {
       throw new Error('Video transcript is too short or unavailable for reliable analysis');
     }
 
-    const contentType = this.detectContentType(data.transcript);
-    const cacheKey = this.cache.generateFactCheckKey(data.transcript, settings, contentType);
-    
-    // Check cache ONLY if not force refreshing
-    if (settings.cacheResults && !forceRefresh) {
-      const cachedResult = this.cache.get(cacheKey);
-      if (cachedResult) {
-        console.log('📋 Using cached results (not force refresh)');
-        return { success: true, result: cachedResult, cached: true, contentType };
+    console.log('🔄 Starting enhanced fact-check processing...');
+    const processingStartTime = Date.now();
+
+    try {
+      // Step 1: Process the raw transcript
+      console.log('📝 Pre-processing transcript...');
+      const processedData = await this.transcriptProcessor.process(
+        data.transcript,
+        data.videoId || 'unknown',
+        settings,
+        {
+          forceRefresh,
+          maxLength: 8000,
+          aggressiveCleaning: settings.strictMode || false
+        }
+      );
+
+      // Step 2: Generate cache key based on processed content
+      const contentType = this.detectContentType(processedData);
+      const cacheKey = this.generateEnhancedCacheKey(processedData, settings, contentType);
+      
+      // Check cache ONLY if not force refreshing
+      if (settings.cacheResults && !forceRefresh) {
+        const cachedResult = this.cache.get(cacheKey);
+        if (cachedResult) {
+          console.log('📋 Using cached results (enhanced processing)');
+          return { 
+            success: true, 
+            result: cachedResult, 
+            cached: true, 
+            contentType,
+            processingMetadata: processedData.metadata
+          };
+        }
       }
+
+      // Step 3: Enhanced fact-checking with processed data
+      console.log('🔍 Performing enhanced fact-checking analysis...');
+      const factCheckResults = await this.performEnhancedFactCheck(
+        processedData, 
+        settings, 
+        contentType
+      );
+
+      // Step 4: Merge and validate results
+      const finalResults = this.mergeAndValidateResults(
+        factCheckResults,
+        processedData,
+        settings.confidenceThreshold
+      );
+
+      // Cache the results
+      if (settings.cacheResults) {
+        this.cache.set(cacheKey, finalResults);
+      }
+      
+      await this.statsManager.update(finalResults);
+      
+      const totalProcessingTime = Date.now() - processingStartTime;
+      console.log(`✅ Enhanced fact-check completed in ${totalProcessingTime}ms`);
+
+      return { 
+        success: true, 
+        result: finalResults, 
+        cached: false,
+        contentType: contentType,
+        forceRefresh: forceRefresh,
+        processingMetadata: {
+          ...processedData.metadata,
+          factCheckTime: totalProcessingTime,
+          enhancedProcessing: true
+        },
+        analysisMetadata: {
+          confidence: this.calculateOverallConfidence(finalResults),
+          claimTypes: this.categorizeClaimTypes(finalResults),
+          reliability: this.assessResultReliability(finalResults),
+          groundingUsed: settings.useGroundingSearch,
+          modelUsed: this.modelConfig.selectModel(settings),
+          analysisTime: new Date().toISOString(),
+          segmentsAnalyzed: processedData.segments.length,
+          preIdentifiedClaims: processedData.factualClaims.length
+        }
+      };
+
+    } catch (error) {
+      console.error('❌ Enhanced fact-check processing failed:', error);
+      
+      // Fallback to original processing if enhanced fails
+      console.log('🔄 Falling back to original processing method...');
+      return await this.fallbackToOriginalProcessing(data, sender, forceRefresh);
+    }
+  }
+
+  /**
+   * Enhanced content type detection using processed data
+   */
+  detectContentType(processedData) {
+    const { segments, metadata } = processedData;
+    
+    // Use primary subject from processing if available
+    if (metadata.primarySubject && metadata.primarySubject !== 'General Discussion') {
+      const subject = metadata.primarySubject.toLowerCase();
+      
+      if (subject.includes('news') || subject.includes('current')) return 'news';
+      if (subject.includes('science') || subject.includes('research')) return 'science';
+      if (subject.includes('health') || subject.includes('medical')) return 'health';
+      if (subject.includes('politics') || subject.includes('government')) return 'political';
+      if (subject.includes('business') || subject.includes('finance')) return 'business';
+      if (subject.includes('technology') || subject.includes('tech')) return 'technology';
     }
 
-    // Force refresh - skip cache completely
-    if (forceRefresh) {
-      console.log('🔄 Force refresh - performing fresh analysis');
-      // Clear this specific cache entry
-      this.cache.delete(cacheKey);
-    }
+    // Analyze segment topics and content
+    const topicCounts = {};
+    const patterns = this.modelConfig.getContentPatterns();
+    
+    segments.forEach(segment => {
+      const content = (segment.topic + ' ' + segment.content).toLowerCase();
+      
+      for (const [type, config] of Object.entries(patterns)) {
+        let score = 0;
+        
+        config.keywords.forEach(keyword => {
+          if (content.includes(keyword)) score += 2;
+        });
+        
+        config.indicators.forEach(indicator => {
+          if (content.includes(indicator)) score += 3;
+        });
+        
+        topicCounts[type] = (topicCounts[type] || 0) + score;
+      }
+    });
 
-    const prompt = this.createPrompt(data.transcript, settings, contentType);
+    // Return the type with the highest score
+    const maxScore = Math.max(...Object.values(topicCounts));
+    const detectedType = Object.keys(topicCounts).find(key => topicCounts[key] === maxScore);
+    
+    return maxScore > 3 ? detectedType : 'general';
+  }
+
+  /**
+   * Enhanced fact-checking using processed segments and pre-identified claims
+   */
+  async performEnhancedFactCheck(processedData, settings, contentType) {
+    const { processedTranscript, segments, factualClaims } = processedData;
+    
+    // Strategy 1: If we have pre-identified claims, focus on those
+    if (factualClaims && factualClaims.length > 0) {
+      console.log(`🎯 Analyzing ${factualClaims.length} pre-identified claims...`);
+      return await this.analyzePreIdentifiedClaims(factualClaims, processedData, settings, contentType);
+    }
+    
+    // Strategy 2: Focus on high-priority factual segments
+    const factualSegments = segments.filter(s => 
+      s.type === 'factual' || 
+      s.priority === 'high' || 
+      s.claimDensity >= 7
+    );
+    
+    if (factualSegments.length > 0) {
+      console.log(`📊 Analyzing ${factualSegments.length} high-priority segments...`);
+      return await this.analyzeFactualSegments(factualSegments, settings, contentType);
+    }
+    
+    // Strategy 3: Fallback to analyzing the full processed transcript
+    console.log('📄 Analyzing full processed transcript...');
+    return await this.analyzeProcessedTranscript(processedTranscript, settings, contentType);
+  }
+
+  /**
+   * Analyze pre-identified claims from transcript processing
+   */
+  async analyzePreIdentifiedClaims(claims, processedData, settings, contentType) {
+    const claimsToAnalyze = claims
+      .filter(claim => claim.confidence >= 6) // Only analyze confident claims
+      .slice(0, 8) // Limit to top 8 claims
+      .sort((a, b) => b.confidence - a.confidence);
+
+    const prompt = this.createClaimAnalysisPrompt(claimsToAnalyze, processedData, settings, contentType);
+    
     const responseText = await this.apiService.makeRequest(
       prompt, 
       settings.apiKey, 
@@ -60,10 +224,372 @@ export class FactCheckEngine {
       settings.analysisTimeout || 45
     );
     
-    const result = this.parseResponse(responseText, contentType);
+    return this.parseResponse(responseText, contentType, 'pre-identified-claims');
+  }
+
+  /**
+   * Analyze high-priority factual segments
+   */
+  async analyzeFactualSegments(segments, settings, contentType) {
+    const segmentText = segments
+      .slice(0, 5) // Top 5 segments
+      .map(s => `[${s.topic}] ${s.content}`)
+      .join('\n\n');
+
+    const prompt = this.createSegmentAnalysisPrompt(segmentText, segments, settings, contentType);
+    
+    const responseText = await this.apiService.makeRequest(
+      prompt, 
+      settings.apiKey, 
+      settings,
+      settings.analysisTimeout || 45
+    );
+    
+    return this.parseResponse(responseText, contentType, 'segment-analysis');
+  }
+
+  /**
+   * Analyze full processed transcript (fallback)
+   */
+  async analyzeProcessedTranscript(transcript, settings, contentType) {
+    const prompt = this.createEnhancedTranscriptPrompt(transcript, settings, contentType);
+    
+    const responseText = await this.apiService.makeRequest(
+      prompt, 
+      settings.apiKey, 
+      settings,
+      settings.analysisTimeout || 45
+    );
+    
+    return this.parseResponse(responseText, contentType, 'full-transcript');
+  }
+
+  /**
+   * Create prompt for analyzing pre-identified claims
+   */
+  createClaimAnalysisPrompt(claims, processedData, settings, contentType) {
+    const languageNames = {
+      'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+      'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese',
+      'ko': 'Korean', 'zh': 'Chinese', 'ar': 'Arabic', 'hi': 'Hindi'
+    };
+
+    const languageName = languageNames[settings.language] || 'English';
+    const strictnessLevel = settings.strictMode ? 'MAXIMUM' : 'HIGH';
+
+    const groundingInstructions = settings.useGroundingSearch ? `
+🌐 REAL-TIME VERIFICATION ENABLED:
+- Use Google Search to verify each claim against current, authoritative sources
+- Cross-reference with multiple recent sources for accuracy
+- Prioritize recent information over older sources
+- Cite specific sources found through search when possible
+` : `
+📚 KNOWLEDGE-BASE VERIFICATION:
+- Use your training knowledge to verify claims
+- Apply consistency with known facts from training data
+`;
+
+    const contentRules = this.modelConfig.getContentTypeRules(contentType);
+    const claimsText = claims.map((claim, index) => 
+      `${index + 1}. "${claim.claim}" (Context: ${claim.context || 'General'})`
+    ).join('\n');
+
+    return `You are an expert fact-checker with ${settings.useGroundingSearch ? 'REAL-TIME INTERNET ACCESS' : 'comprehensive knowledge base'}. 
+
+These claims were PRE-IDENTIFIED from a video transcript using AI processing. Your task is to verify each claim with ${strictnessLevel} accuracy.
+
+${groundingInstructions}
+
+CONTENT TYPE: ${contentType.toUpperCase()}
+STRICTNESS LEVEL: ${strictnessLevel}
+MINIMUM CONFIDENCE THRESHOLD: ${settings.confidenceThreshold}%
+
+${contentRules}
+
+VIDEO METADATA:
+- Primary Subject: ${processedData.metadata.primarySubject}
+- Total Segments: ${processedData.metadata.topicsCount}
+- Factual Segments: ${processedData.metadata.factualSegments}
+
+PRE-IDENTIFIED CLAIMS TO VERIFY:
+${claimsText}
+
+VERIFICATION STANDARDS:
+- "True" (90-100%): Confirmed by multiple reliable sources or real-time verification
+- "Mostly True" (75-89%): Largely accurate with minor discrepancies
+- "Partly True" (60-74%): Contains accurate elements but also inaccuracies  
+- "Misleading" (40-59%): Technically accurate but misleading context
+- "False" (20-39%): Factually incorrect or contradicted by evidence
+- "Unverifiable" (0-19%): Cannot be verified from available sources
+
+REQUIRED OUTPUT FORMAT (JSON ONLY):
+[
+  {
+    "claim": "Exact claim text from above list",
+    "category": "statistical|temporal|geographical|scientific|official|business|other", 
+    "status": "True|Mostly True|Partly True|Misleading|False|Unverifiable",
+    "confidence": 85,
+    "explanation": "Detailed verification with specific evidence and sources",
+    "evidenceType": "official_record|scientific_study|news_report|government_data|real_time_search|other",
+    "verificationMethod": "Description of verification process${settings.useGroundingSearch ? ' including search results' : ''}",
+    "sources": "Specific sources used for verification",
+    "context": "Important context affecting interpretation",
+    "lastVerified": "timeframe of verification",
+    "groundingUsed": ${settings.useGroundingSearch},
+    "preIdentified": true
+  }
+]
+
+CRITICAL REQUIREMENTS:
+- Verify ALL claims from the list above
+- Output ONLY valid JSON - no additional text
+- Each claim must match exactly from the pre-identified list
+- Use ${languageName} for explanations
+${settings.useGroundingSearch ? '- Leverage real-time search for current verification' : '- Use knowledge base for historical verification'}`;
+  }
+
+  /**
+   * Create prompt for analyzing factual segments
+   */
+  createSegmentAnalysisPrompt(segmentText, segments, settings, contentType) {
+    const languageNames = {
+      'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+      'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese',
+      'ko': 'Korean', 'zh': 'Chinese', 'ar': 'Arabic', 'hi': 'Hindi'
+    };
+
+    const languageName = languageNames[settings.language] || 'English';
+    const strictnessLevel = settings.strictMode ? 'MAXIMUM' : 'HIGH';
+
+    const groundingInstructions = settings.useGroundingSearch ? `
+🌐 REAL-TIME VERIFICATION ENABLED:
+- Use Google Search to verify each claim against current, authoritative sources
+- Cross-reference with multiple recent sources for accuracy
+- Prioritize recent information over older sources
+` : `
+📚 KNOWLEDGE-BASE VERIFICATION:
+- Use your training knowledge to verify claims
+- Apply consistency with known facts from training data
+`;
+
+    const contentRules = this.modelConfig.getContentTypeRules(contentType);
+    const segmentSummary = segments.map(s => 
+      `• ${s.topic} (Priority: ${s.priority}, Claim Density: ${s.claimDensity}/10)`
+    ).join('\n');
+
+    return `You are an expert fact-checker analyzing PRE-SEGMENTED content from a video transcript.
+
+${groundingInstructions}
+
+CONTENT TYPE: ${contentType.toUpperCase()}
+STRICTNESS LEVEL: ${strictnessLevel}
+ANALYSIS MODE: High-priority factual segments
+
+${contentRules}
+
+SEGMENT OVERVIEW:
+${segmentSummary}
+
+HIGH-PRIORITY FACTUAL SEGMENTS TO ANALYZE:
+${segmentText}
+
+CLAIM IDENTIFICATION CRITERIA:
+✅ FOCUS ON: Statistical data, dates, locations, quantities, official statements, scientific findings, historical events, company information, legal facts, measurable phenomena
+❌ IGNORE: Opinions, predictions, subjective assessments, motivational statements, personal experiences, hypothetical scenarios
+
+VERIFICATION STANDARDS:
+- "True" (90-100%): Confirmed by multiple reliable sources or real-time verification
+- "Mostly True" (75-89%): Largely accurate with minor discrepancies
+- "Partly True" (60-74%): Contains accurate elements but also inaccuracies  
+- "Misleading" (40-59%): Technically accurate but misleading context
+- "False" (20-39%): Factually incorrect or contradicted by evidence
+- "Unverifiable" (0-19%): Cannot be verified from available sources
+
+REQUIRED OUTPUT FORMAT (JSON ONLY):
+[
+  {
+    "claim": "Exact quote from segments above",
+    "category": "statistical|temporal|geographical|scientific|official|business|other", 
+    "status": "True|Mostly True|Partly True|Misleading|False|Unverifiable",
+    "confidence": 85,
+    "explanation": "Detailed verification with specific evidence and sources",
+    "evidenceType": "official_record|scientific_study|news_report|government_data|real_time_search|other",
+    "verificationMethod": "Description of verification process",
+    "sources": "Specific sources used for verification",
+    "context": "Important context affecting interpretation",
+    "lastVerified": "timeframe of verification",
+    "groundingUsed": ${settings.useGroundingSearch},
+    "segmentBased": true
+  }
+]
+
+CRITICAL REQUIREMENTS:
+- Return empty array [] if no claims meet ${settings.confidenceThreshold}% confidence
+- Output ONLY valid JSON - no additional text
+- Focus on most significant verifiable claims (max 6)
+- Use ${languageName} for explanations`;
+  }
+
+  /**
+   * Create enhanced prompt for full processed transcript
+   */
+  createEnhancedTranscriptPrompt(transcript, settings, contentType) {
+    const languageNames = {
+      'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+      'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese',
+      'ko': 'Korean', 'zh': 'Chinese', 'ar': 'Arabic', 'hi': 'Hindi'
+    };
+
+    const languageName = languageNames[settings.language] || 'English';
+    const strictnessLevel = settings.strictMode ? 'MAXIMUM' : 'HIGH';
+
+    const groundingInstructions = settings.useGroundingSearch ? `
+🌐 REAL-TIME VERIFICATION ENABLED:
+- Use Google Search to verify each claim against current, authoritative sources
+- Cross-reference with multiple recent sources for accuracy
+- Prioritize recent information over older sources
+` : `
+📚 KNOWLEDGE-BASE VERIFICATION:
+- Use your training knowledge to verify claims
+- Apply consistency with known facts from training data
+`;
+
+    const contentRules = this.modelConfig.getContentTypeRules(contentType);
+
+    return `You are an expert fact-checker analyzing a PRE-PROCESSED and CLEANED video transcript.
+
+${groundingInstructions}
+
+CONTENT TYPE: ${contentType.toUpperCase()}
+STRICTNESS LEVEL: ${strictnessLevel}
+ANALYSIS MODE: Enhanced processed transcript
+
+${contentRules}
+
+TRANSCRIPT PREPROCESSING COMPLETED:
+✅ Transcription errors corrected
+✅ Filler words and repetitions removed  
+✅ Grammar and punctuation fixed
+✅ Content cleaned and optimized
+
+PROCESSED TRANSCRIPT TO ANALYZE:
+"${transcript}"
+
+CLAIM IDENTIFICATION CRITERIA:
+✅ PRIORITIZE: Statistical data, dates, locations, quantities, official statements, scientific findings, historical events, company information, legal facts, measurable phenomena
+❌ EXCLUDE: Opinions, predictions, subjective assessments, motivational statements, personal experiences, hypothetical scenarios
+
+VERIFICATION STANDARDS:
+- "True" (90-100%): Confirmed by multiple reliable sources or real-time verification
+- "Mostly True" (75-89%): Largely accurate with minor discrepancies
+- "Partly True" (60-74%): Contains accurate elements but also inaccuracies  
+- "Misleading" (40-59%): Technically accurate but misleading context
+- "False" (20-39%): Factually incorrect or contradicted by evidence
+- "Unverifiable" (0-19%): Cannot be verified from available sources
+
+REQUIRED OUTPUT FORMAT (JSON ONLY):
+[
+  {
+    "claim": "Exact quote from processed transcript",
+    "category": "statistical|temporal|geographical|scientific|official|business|other", 
+    "status": "True|Mostly True|Partly True|Misleading|False|Unverifiable",
+    "confidence": 85,
+    "explanation": "Detailed verification with specific evidence and sources",
+    "evidenceType": "official_record|scientific_study|news_report|government_data|real_time_search|other",
+    "verificationMethod": "Description of verification process",
+    "sources": "Specific sources used for verification",
+    "context": "Important context affecting interpretation",
+    "lastVerified": "timeframe of verification",
+    "groundingUsed": ${settings.useGroundingSearch},
+    "enhancedProcessing": true
+  }
+]
+
+CRITICAL REQUIREMENTS:
+- Return empty array [] if no claims meet ${settings.confidenceThreshold}% confidence
+- Output ONLY valid JSON - no additional text
+- Focus on most significant verifiable claims (max 8)
+- Use ${languageName} for explanations
+- Leverage the improved transcript quality for better claim extraction`;
+  }
+
+  /**
+   * Enhanced cache key generation including processed data
+   */
+  generateEnhancedCacheKey(processedData, settings, contentType) {
+    const keyData = {
+      processedTranscript: processedData.processedTranscript.substring(0, 200), // First 200 chars
+      segmentCount: processedData.segments.length,
+      claimCount: processedData.factualClaims.length,
+      contentType: contentType,
+      settings: {
+        useGroundingSearch: settings.useGroundingSearch,
+        usePremiumModel: settings.usePremiumModel,
+        strictMode: settings.strictMode,
+        confidenceThreshold: settings.confidenceThreshold
+      }
+    };
+    
+    return this.cache.generateFactCheckKey(JSON.stringify(keyData), settings, contentType);
+  }
+
+  /**
+   * Merge and validate results from enhanced processing
+   */
+  mergeAndValidateResults(factCheckResults, processedData, confidenceThreshold) {
+    const validatedResults = factCheckResults
+      .filter(result => this.validateClaimResult(result))
+      .filter(result => result.confidence >= confidenceThreshold)
+      .map(result => this.enhanceClaimResult(result, processedData.metadata.primarySubject || 'general'))
+      .sort((a, b) => {
+        if (a.reliabilityScore !== b.reliabilityScore) return b.reliabilityScore - a.reliabilityScore;
+        if (a.confidence !== b.confidence) return b.confidence - a.confidence;
+        const statusOrder = { 'True': 5, 'False': 4, 'Mostly True': 3, 'Misleading': 2, 'Partly True': 1, 'Unverifiable': 0 };
+        return (statusOrder[b.status] || 0) - (statusOrder[a.status] || 0);
+      });
+
+    // Add processing metadata to each result
+    return validatedResults.map(result => ({
+      ...result,
+      processingEnhanced: true,
+      transcriptProcessed: true,
+      originalTranscriptLength: processedData.metadata.originalLength,
+      processedTranscriptLength: processedData.metadata.processedLength,
+      reductionPercentage: processedData.metadata.reductionPercentage
+    }));
+  }
+
+  /**
+   * Fallback to original processing method
+   */
+  async fallbackToOriginalProcessing(data, sender, forceRefresh) {
+    console.log('🔄 Using original fact-check processing as fallback...');
+    
+    const settings = await this.settingsManager.getAll();
+    const contentType = this.detectContentTypeFromRaw(data.transcript);
+    const cacheKey = this.cache.generateFactCheckKey(data.transcript, settings, contentType);
+    
+    // Check cache ONLY if not force refreshing
+    if (settings.cacheResults && !forceRefresh) {
+      const cachedResult = this.cache.get(cacheKey);
+      if (cachedResult) {
+        console.log('📋 Using cached results (fallback method)');
+        return { success: true, result: cachedResult, cached: true, contentType };
+      }
+    }
+
+    const prompt = this.createOriginalPrompt(data.transcript, settings, contentType);
+    const responseText = await this.apiService.makeRequest(
+      prompt, 
+      settings.apiKey, 
+      settings,
+      settings.analysisTimeout || 45
+    );
+    
+    const result = this.parseResponse(responseText, contentType, 'fallback');
     const validatedResult = this.validateResults(result, settings.confidenceThreshold);
     
-    // Cache the fresh result (even after force refresh)
+    // Cache the fallback result
     if (settings.cacheResults) {
       this.cache.set(cacheKey, validatedResult);
     }
@@ -73,9 +599,10 @@ export class FactCheckEngine {
     return { 
       success: true, 
       result: validatedResult, 
-      cached: false, // Always false for fresh analysis
+      cached: false,
       contentType: contentType,
       forceRefresh: forceRefresh,
+      fallbackProcessing: true,
       analysisMetadata: {
         confidence: this.calculateOverallConfidence(validatedResult),
         claimTypes: this.categorizeClaimTypes(validatedResult),
@@ -87,25 +614,10 @@ export class FactCheckEngine {
     };
   }
 
-  // Cache management methods
-  clearCache(videoId) {
-    if (videoId) {
-      // Clear cache entries related to this video
-      const keys = this.cache.keys();
-      const videoKeys = keys.filter(key => key.includes(videoId) || key.includes('fact_check'));
-      videoKeys.forEach(key => this.cache.delete(key));
-      
-      console.log(`🗑️ Cleared ${videoKeys.length} cache entries for video: ${videoId}`);
-    }
-  }
-
-  clearAllCache() {
-    this.cache.clear();
-    console.log('🗑️ Cleared all fact-check cache');
-  }
-
-  // Rest of the methods remain the same...
-  detectContentType(transcript) {
+  /**
+   * Detect content type from raw transcript (for fallback)
+   */
+  detectContentTypeFromRaw(transcript) {
     const patterns = this.modelConfig.getContentPatterns();
     const lowercaseTranscript = transcript.toLowerCase();
     const scores = {};
@@ -134,7 +646,10 @@ export class FactCheckEngine {
     return maxScore > 5 ? detectedType : 'general';
   }
 
-  createPrompt(transcript, settings, contentType) {
+  /**
+   * Create original prompt (for fallback)
+   */
+  createOriginalPrompt(transcript, settings, contentType) {
     const languageNames = {
       'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
       'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese',
@@ -210,7 +725,8 @@ CRITICAL REQUIREMENTS:
 ${settings.useGroundingSearch ? '- Leverage real-time search for current verification' : '- Use knowledge base for historical verification'}`;
   }
 
-  parseResponse(responseText, contentType) {
+  // Keep all the existing methods from the original FactCheckEngine.js
+  parseResponse(responseText, contentType, analysisType = 'standard') {
     try {
       let cleanedResponse = responseText.trim()
         .replace(/```(?:json)?\s*/g, '')
@@ -229,7 +745,7 @@ ${settings.useGroundingSearch ? '- Leverage real-time search for current verific
       return results
         .filter(result => this.validateClaimResult(result))
         .slice(0, 8)
-        .map(result => this.enhanceClaimResult(result, contentType))
+        .map(result => this.enhanceClaimResult(result, contentType, analysisType))
         .sort((a, b) => b.confidence - a.confidence);
 
     } catch (error) {
@@ -247,7 +763,8 @@ ${settings.useGroundingSearch ? '- Leverage real-time search for current verific
         context: "Technical processing limitation",
         lastVerified: "real-time",
         timestamp: Date.now(),
-        groundingUsed: false
+        groundingUsed: false,
+        analysisType: analysisType
       }];
     }
   }
@@ -264,7 +781,7 @@ ${settings.useGroundingSearch ? '- Leverage real-time search for current verific
            ['True', 'Mostly True', 'Partly True', 'Misleading', 'False', 'Unverifiable'].includes(result.status);
   }
 
-  enhanceClaimResult(result, contentType) {
+  enhanceClaimResult(result, contentType, analysisType = 'standard') {
     return {
       claim: String(result.claim).trim(),
       category: String(result.category || 'other').trim(),
@@ -279,7 +796,11 @@ ${settings.useGroundingSearch ? '- Leverage real-time search for current verific
       contentType: contentType,
       timestamp: Date.now(),
       reliabilityScore: this.calculateReliabilityScore(result),
-      groundingUsed: Boolean(result.groundingUsed)
+      groundingUsed: Boolean(result.groundingUsed),
+      analysisType: analysisType,
+      preIdentified: Boolean(result.preIdentified),
+      segmentBased: Boolean(result.segmentBased),
+      enhancedProcessing: Boolean(result.enhancedProcessing)
     };
   }
 
@@ -403,4 +924,38 @@ ${settings.useGroundingSearch ? '- Leverage real-time search for current verific
       return 'VERY_LOW';
     }
   }
+
+  // Cache management methods
+  clearCache(videoId) {
+    if (videoId) {
+      // Clear cache entries related to this video
+      const keys = this.cache.keys();
+      const videoKeys = keys.filter(key => key.includes(videoId) || key.includes('fact_check'));
+      videoKeys.forEach(key => this.cache.delete(key));
+      
+      // Also clear transcript processing cache
+      this.transcriptProcessor.clearCache();
+      
+      console.log(`🗑️ Cleared ${videoKeys.length} fact-check cache entries for video: ${videoId}`);
+    }
+  }
+
+  clearAllCache() {
+    this.cache.clear();
+    this.transcriptProcessor.clearCache();
+    console.log('🗑️ Cleared all fact-check and transcript processing cache');
+  }
+
+  // Enhanced statistics and debugging
+  getEnhancedStats() {
+    return {
+      factCheckStats: this.statsManager.getStats ? this.statsManager.getStats() : null,
+      transcriptProcessingStats: this.transcriptProcessor.getStats(),
+      cacheInfo: {
+        factCheck: this.cache.getInfo ? this.cache.getInfo() : null,
+        transcriptProcessing: this.transcriptProcessor.cache.getInfo ? this.transcriptProcessor.cache.getInfo() : null
+      }
+    };
+  }
 }
+      

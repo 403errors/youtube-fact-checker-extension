@@ -1,4 +1,4 @@
-// Message routing and handling - Fixed to support forceRefresh
+// Enhanced Message routing and handling - Added support for enhanced fact-checking
 import { SettingsManager } from '../utils/SettingsManager.js';
 import { APIService } from './APIService.js';
 import { FactCheckEngine } from './FactCheckEngine.js';
@@ -24,6 +24,9 @@ export class MessageHandler {
         case 'FACT_CHECK_REQUEST':
           await this.handleFactCheckRequest(message.data, sender, sendResponse);
           break;
+        case 'ENHANCED_FACT_CHECK_REQUEST':
+          await this.handleEnhancedFactCheckRequest(message.data, sender, sendResponse);
+          break;
         case 'VALIDATE_API_KEY':
           await this.handleApiKeyValidation(message.apiKey, sendResponse);
           break;
@@ -38,6 +41,9 @@ export class MessageHandler {
           break;
         case 'CLEAR_CACHE':
           await this.handleClearCache(message.videoId, sendResponse);
+          break;
+        case 'GET_PROCESSING_STATS':
+          await this.handleGetProcessingStats(sendResponse);
           break;
         default:
           sendResponse({ success: false, error: 'Unknown message type' });
@@ -69,7 +75,7 @@ export class MessageHandler {
 
   async handleFactCheckRequest(data, sender, sendResponse) {
     try {
-      // Check for force refresh flag
+      // Legacy fact-check request - maintain backward compatibility
       const forceRefresh = data.forceRefresh === true;
       
       if (forceRefresh) {
@@ -86,6 +92,74 @@ export class MessageHandler {
       sendResponse(result);
     } catch (error) {
       sendResponse({ success: false, error: error.message });
+    }
+  }
+
+  async handleEnhancedFactCheckRequest(data, sender, sendResponse) {
+    try {
+      console.log('🚀 Enhanced fact-check request received');
+      
+      const forceRefresh = data.forceRefresh === true;
+      
+      if (forceRefresh) {
+        console.log('🔄 Enhanced force refresh requested - clearing all caches');
+        
+        // Clear cache for this specific request
+        if (data.videoId) {
+          this.factCheckEngine.clearCache(data.videoId);
+        }
+      }
+
+      // Prepare data for enhanced processing
+      const enhancedData = {
+        transcript: data.transcript, // Raw transcript for fallback
+        processedData: data.processedData, // Pre-processed transcript data
+        videoId: data.videoId,
+        forceRefresh: forceRefresh
+      };
+
+      // Use enhanced processing
+      const result = await this.factCheckEngine.process(enhancedData, sender, forceRefresh);
+      
+      // Add enhanced processing metadata to response
+      const enhancedResult = {
+        ...result,
+        enhancedProcessing: true,
+        processingPipeline: 'transcript_preprocessing',
+        originalTranscriptLength: data.processedData?.metadata?.originalLength || data.transcript?.length || 0,
+        processedTranscriptLength: data.processedData?.metadata?.processedLength || 0,
+        reductionPercentage: data.processedData?.metadata?.reductionPercentage || 0,
+        segmentsAnalyzed: data.processedData?.segments?.length || 0,
+        preIdentifiedClaims: data.processedData?.factualClaims?.length || 0
+      };
+
+      sendResponse(enhancedResult);
+    } catch (error) {
+      console.error('Enhanced fact-check error:', error);
+      
+      // Fallback to standard processing if enhanced fails
+      console.log('🔄 Enhanced processing failed, falling back to standard processing');
+      try {
+        const fallbackData = {
+          transcript: data.transcript,
+          videoId: data.videoId,
+          forceRefresh: data.forceRefresh
+        };
+        
+        const fallbackResult = await this.factCheckEngine.process(fallbackData, sender, data.forceRefresh);
+        
+        sendResponse({
+          ...fallbackResult,
+          enhancedProcessing: false,
+          fallbackUsed: true,
+          fallbackReason: error.message
+        });
+      } catch (fallbackError) {
+        sendResponse({ 
+          success: false, 
+          error: `Enhanced processing failed: ${error.message}. Fallback also failed: ${fallbackError.message}` 
+        });
+      }
     }
   }
 
@@ -138,6 +212,19 @@ export class MessageHandler {
       sendResponse({ success: true });
     } catch (error) {
       console.error('Cache clear error:', error);
+      sendResponse({ success: false, error: error.message });
+    }
+  }
+
+  async handleGetProcessingStats(sendResponse) {
+    try {
+      const stats = this.factCheckEngine.getEnhancedStats ? 
+        this.factCheckEngine.getEnhancedStats() : 
+        { message: 'Enhanced stats not available' };
+      
+      sendResponse({ success: true, stats });
+    } catch (error) {
+      console.error('Get processing stats error:', error);
       sendResponse({ success: false, error: error.message });
     }
   }
